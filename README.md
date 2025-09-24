@@ -1,298 +1,338 @@
-# JoustLM - LLM Knowledge Extractor
+# :cloud: Air - Live reload for Go apps
 
-A prototype LLM knowledge extractor that takes unstructured text input and uses an LLM to produce both summaries and structured data. Built with Go backend and vanilla JavaScript frontend as a take-home assignment.
+[![Go](https://github.com/air-verse/air/actions/workflows/release.yml/badge.svg)](https://github.com/air-verse/air/actions?query=workflow%3AGo+branch%3Amaster) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/dcb95264cc504cad9c2a3d8b0795a7f8)](https://www.codacy.com/gh/air-verse/air/dashboard?utm_source=github.com&utm_medium=referral&utm_content=air-verse/air&utm_campaign=Badge_Grade) [![Go Report Card](https://goreportcard.com/badge/github.com/air-verse/air)](https://goreportcard.com/report/github.com/air-verse/air) [![codecov](https://codecov.io/gh/air-verse/air/branch/master/graph/badge.svg)](https://codecov.io/gh/air-verse/air)
 
-> **Assignment**: This project was built as a 90-minute take-home assignment for a Software Engineer position. It demonstrates core functionality for text analysis, LLM integration, and data persistence while maintaining simplicity and clarity over feature completeness.
+![air](docs/air.png)
+
+English | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md)
+
+## Motivation
+
+When I started developing websites in Go and using [gin](https://github.com/gin-gonic/gin) framework, it was a pity
+that gin lacked a live-reloading function. So I searched around and tried [fresh](https://github.com/pilu/fresh), it seems not much
+flexible, so I intended to rewrite it better. Finally, Air's born.
+In addition, great thanks to [pilu](https://github.com/pilu), no fresh, no air :)
+
+Air is yet another live-reloading command line utility for developing Go applications. Run `air` in your project root directory, leave it alone,
+and focus on your code.
+
+Note: This tool has nothing to do with hot-deploy for production.
 
 ## Features
 
-- **LLM Knowledge Extraction**: Extract structured knowledge from unstructured text via LLM API
-- **Text Analysis**: Accept unstructured text input (articles, blog posts, updates)
-- **Structured Data Extraction**: Generate 1-2 sentence summaries and extract metadata (title, topics, sentiment, keywords)
-- **Custom Keyword Extraction**: Custom implementation to find the 3 most frequent nouns
-- **Knowledge Base Management**: Store, update, and query extracted knowledge entries
-- **User Management**: JWT-based authentication system with secure session handling
-- **Modern Frontend**: Responsive web UI for exploring and managing extracted knowledge
-- **Real-Time Updates**: Live updates for new extractions and knowledge entries
-- **Enhanced UI**: Pronounced hover effects, shadows, and smooth animations
-- **Docker Support**: Fully containerized with Docker Compose
-- **SQLite Database**: Lightweight data persistence with proper NULL handling
-- **Configuration Management**: YAML-based configuration system with configurable frontend paths
-- **Comprehensive Logging**: Structured logging with configurable levels
-- **Testing Suite**: Unit and integration tests using Go testing package and testcontainers
-- **Development Tools**: Git hooks, commitlint, and golangci-lint for code quality
-- **Complete API Documentation**: OpenAPI 3.0.3 specification with interactive Swagger UI
-- **Interactive API Testing**: Built-in Swagger UI for testing all endpoints
-- **Error Handling**: Robust handling of empty input and LLM API failures
+- Colorful log output
+- Customize build or any command
+- Support excluding subdirectories
+- Allow watching new directories after Air started
+- Better building process
 
-## Architecture
+### Overwrite specify configuration from arguments
 
-### Backend (Go)
-- REST API server with JWT authentication
-- LLM extraction endpoints for submitting prompts and receiving structured knowledge
-- Static file server for frontend assets with configurable paths
-- SQLite database integration for storing extracted knowledge and user data
-- YAML-based configuration management
-- Structured logging system
-- Health check endpoints with JSON responses
-- Comprehensive testing with Go testing package
-- Complete OpenAPI 3.0.3 documentation with interactive Swagger UI
-- Advanced knowledge management endpoints
-- Input validation and error handling for LLM extraction requests
-- Custom keyword extraction algorithm to find frequent nouns
+Support air config fields as arguments:
 
-### Frontend (Vanilla JS)
-- Modern, responsive web interface for managing and visualizing extracted knowledge
-- JWT-based authentication with secure token handling
-- Real-time updates for new extractions and knowledge entries
-- Advanced knowledge operations (create, update, delete, query)
-- Pagination and filtering support for large knowledge bases
-- Copy-to-clipboard functionality for extracted results
-- Dark theme and enhanced UI with smooth animations
-- Enhanced hover effects and visual feedback
-- Configuration-driven API endpoints
+You can view the available command-line arguments by running the following commands:  
 
-### Infrastructure
-- Docker Compose for local development
-- SQLite database for data persistence
-- Health monitoring and checks
-- Testcontainers for integration testing
+```
+air -h
+```
+or  
+```
+air --help
+```
 
-## Quick Start
+If you want to config build command and run command, you can use like the following command without the config file:
 
-### Prerequisites
-- Docker and Docker Compose
-- Go 1.25+ (for local development)
+```shell
+air --build.cmd "go build -o bin/api cmd/run.go" --build.bin "./bin/api"
+```
 
-### Using Docker Compose (Recommended)
+Use a comma to separate items for arguments that take a list as input:
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/shashank-priyadarshi/joustlm.git
-   cd joustlm
-   ```
+```shell
+air --build.cmd "go build -o bin/api cmd/run.go" --build.bin "./bin/api" --build.exclude_dir "templates,build"
+```
 
-2. **Start all services**:
-   ```bash
-   docker-compose -f build/compose.yml up -d
-   ```
+## Installation
 
-3. **Access the application**:
-   - Frontend: http://localhost:8080
-   - Backend API: http://localhost:8080/api/
-   - Swagger UI: http://localhost:8080/swagger/
+### Via `go install` (Recommended)
 
-### Local Development
+With go 1.25 or higher:
 
-1. **Build minified frontend assets** (optional, for production):
-   ```bash
-   npm run build:frontend
-   ```
+```bash
+go install github.com/air-verse/air@latest
+```
 
-2. **Start the application**:
-   ```bash
-   go run cmd/backend/backend.go
-   ```
+### Via install.sh
 
-3. **Access the application**:
-   - Frontend: http://localhost:8080
-   - Backend API: http://localhost:8080/api
-   - Swagger UI: http://localhost:8080/swagger/
+```shell
+# binary will be $(go env GOPATH)/bin/air
+curl -sSfL https://raw.githubusercontent.com/air-verse/air/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 
-## Configuration
+# or install it into ./bin/
+curl -sSfL https://raw.githubusercontent.com/air-verse/air/master/install.sh | sh -s
 
-The application uses YAML configuration files:
+air -v
+```
 
-- `config/config.yml`: Main application configuration
+### Via [goblin.run](https://goblin.run)
 
-### Key Configuration Options
+```shell
+# binary will be /usr/local/bin/air
+curl -sSfL https://goblin.run/github.com/air-verse/air | sh
+
+# to put to a custom path
+curl -sSfL https://goblin.run/github.com/air-verse/air | PREFIX=/tmp sh
+```
+
+### Docker/Podman
+
+Please pull this Docker image [cosmtrek/air](https://hub.docker.com/r/cosmtrek/air).
+
+```shell
+docker/podman run -it --rm \
+    -w "<PROJECT>" \
+    -e "air_wd=<PROJECT>" \
+    -v $(pwd):<PROJECT> \
+    -p <PORT>:<APP SERVER PORT> \
+    cosmtrek/air
+    -c <CONF>
+```
+
+#### Docker/Podman .${SHELL}rc
+
+if you want to use air continuously like a normal app, you can create a function in your ${SHELL}rc (Bash, Zsh, etc…)
+
+```shell
+air() {
+  podman/docker run -it --rm \
+    -w "$PWD" -v "$PWD":"$PWD" \
+    -p "$AIR_PORT":"$AIR_PORT" \
+    docker.io/cosmtrek/air "$@"
+}
+```
+
+`<PROJECT>` is your project path in container, eg: /go/example
+if you want to enter the container, Please add --entrypoint=bash.
+
+<details>
+  <summary>For example</summary>
+
+One of my project runs in Docker:
+
+```shell
+docker run -it --rm \
+  -w "/go/src/github.com/cosmtrek/hub" \
+  -v $(pwd):/go/src/github.com/cosmtrek/hub \
+  -p 9090:9090 \
+  cosmtrek/air
+```
+
+Another example:
+
+```shell
+cd /go/src/github.com/cosmtrek/hub
+AIR_PORT=8080 air -c "config.toml"
+```
+
+this will replace `$PWD` with the current directory, `$AIR_PORT` is the port where to publish and `$@` is to accept arguments of the application itself for example -c
+
+</details>
+
+## Usage
+
+For less typing, you could add `alias air='~/.air'` to your `.bashrc` or `.zshrc`.
+
+First enter into your project
+
+```shell
+cd /path/to/your_project
+```
+
+The simplest usage is run
+
+```shell
+# firstly find `.air.toml` in current directory, if not found, use defaults
+air -c .air.toml
+```
+
+You can initialize the `.air.toml` configuration file to the current directory with the default settings running the following command.
+
+```shell
+air init
+```
+
+After this, you can just run the `air` command without additional arguments, and it will use the `.air.toml` file for configuration.
+
+```shell
+air
+```
+
+For modifying the configuration refer to the [air_example.toml](air_example.toml) file.
+
+### Runtime arguments
+
+You can pass arguments for running the built binary by adding them after the air command.
+
+```shell
+# Will run ./tmp/main bench
+air bench
+
+# Will run ./tmp/main server --port 8080
+air server --port 8080
+```
+
+You can separate the arguments passed for the air command and the built binary with `--` argument.
+
+```shell
+# Will run ./tmp/main -h
+air -- -h
+
+# Will run air with custom config and pass -h argument to the built binary
+air -c .air.toml -- -h
+```
+
+### Docker Compose
 
 ```yaml
-server:
-  port: "8080"
-  host: "127.0.0.1"
-  frontend_assets_path: "frontend"
-  logging:
-    level: "info"
-    format: "json"
-    output: "stdout"
-    caller_depth:
-      backend: 8
-      frontend: 8
-  cors:
-    allowed_origins: ["*"]
-    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allowed_headers: ["*"]
-    allow_credentials: true
-  database:
-    dsn:
-      users: "file:joustlm.db?cache=shared&mode=rwc"
-      knowledge: "file:joustlm.db?cache=shared&mode=rwc"
-  security:
-    jwt_secret: "your-secret-key"
-    password_salt: "your-salt"
-    token_expiry_hours: 24
-  llm:
-    api_key: "your-openai-api-key"
-    model: "gpt-3.5-turbo"
+services:
+  my-project-with-air:
+    image: cosmtrek/air
+    # working_dir value has to be the same of mapped volume
+    working_dir: /project-package
+    ports:
+      - <any>:<any>
+    environment:
+      - ENV_A=${ENV_A}
+      - ENV_B=${ENV_B}
+      - ENV_C=${ENV_C}
+    volumes:
+      - ./project-relative-path/:/project-package/
 ```
 
-## API Endpoints
+### Debug
 
-### Authentication
-- `POST /api/v1/auth/login` - User login
-- `POST /api/v1/auth/signup` - User signup
-- `POST /api/v1/auth/logout` - User logout
+`air -d` prints all logs.
 
-### LLM Extraction (Assignment Core)
-- `POST /api/v1/extract` - Submit prompt to LLM and extract knowledge (assignment requirement)
-- `GET /api/v1/extract/:id` - Get extraction result by ID
+## Installation and Usage for Docker users who don't want to use air image
 
-### Knowledge Base Management
-- `GET /api/v1/knowledge?page=1&limit=10` - List extracted knowledge entries
-- `POST /api/v1/knowledge` - Add new knowledge entry manually
-- `PUT /api/v1/knowledge/:id` - Update knowledge entry
-- `DELETE /api/v1/knowledge/:id` - Delete knowledge entry
+`Dockerfile`
 
-### Health & Documentation
-- `GET /health` - Health check endpoint (JSON response)
-- `GET /api` - OpenAPI 3.0.3 specification
-- `GET /swagger/` - Interactive Swagger UI for API testing
+```Dockerfile
+# Choose whatever you want, version >= 1.16
+FROM golang:1.25-alpine
 
-## API Testing with Swagger UI
+WORKDIR /app
 
-The application provides an interactive Swagger UI for testing all API endpoints:
+RUN go install github.com/air-verse/air@latest
 
-### Accessing Swagger UI
-- **URL**: http://localhost:8080/swagger/
-- **Features**: Interactive API documentation with "Try it out" functionality
+COPY go.mod go.sum ./
+RUN go mod download
 
-### Testing Workflow
-
-1. **Start the application** (Docker Compose or local development)
-2. **Open Swagger UI** in your browser: http://localhost:8080/swagger/
-3. **Authentication Flow**:
-   - Use `POST /api/v1/auth/signup` to create a new user
-   - Use `POST /api/v1/auth/login` to authenticate and get JWT token
-   - Click "Authorize" button in Swagger UI and enter: `Bearer <your-jwt-token>`
-4. **Test LLM Extraction (Assignment Core)**:
-   - `POST /api/v1/extract` - Submit a prompt and receive extracted knowledge
-   - `GET /api/v1/extract/{id}` - Retrieve extraction results
-5. **Test Knowledge Management**:
-   - `POST /api/v1/knowledge` - Add new knowledge entry
-   - `GET /api/v1/knowledge` - List knowledge entries
-   - `PUT /api/v1/knowledge/{id}` - Update entry
-   - `DELETE /api/v1/knowledge/{id}` - Delete entry
-
-## Demo Credentials
-
-- **Username**: `demo`
-- **Password**: `demo123`
-
-> **Note**: Demo mode has been removed from the frontend. All functionality now requires actual user registration and authentication.
-
-## Project Structure
-
-```
-joustlm/
-├── build/
-│   ├── compose.yml          # Docker Compose configuration
-│   └── Dockerfile           # Backend container definition
-├── config/
-│   ├── config.go            # Configuration management
-│   └── config.yml           # Application configuration
-├── frontend/
-│   ├── index.html           # Main HTML file
-│   ├── styles.css           # CSS styling with dark theme
-│   ├── script.js            # JavaScript functionality
-│   ├── config.js            # Configuration loader
-│   └── config.json          # Frontend configuration
-├── assets/
-│   └── openapi.json         # OpenAPI 3.0.3 specification
-├── logger/
-│   └── logger.go            # Logging utilities
-├── scripts/
-│   ├── setup.sh             # Setup script
-│   ├── run_integration_tests.sh
-│   └── run_testcontainers_tests.sh
-├── cmd/
-│   └── minify/
-│       └── main.go          # Go-based asset minifier
-├── .githooks/               # Git hooks for code quality
-├── go.mod                   # Go module dependencies
-├── go.sum                   # Go module checksums
-├── package.json             # Node.js dependencies
-├── package-lock.json        # Node.js dependency lock file
-└── README.md
+CMD ["air", "-c", ".air.toml"]
 ```
 
-## Design Choices
+`docker-compose.yaml`
 
-I chose Go for the backend because it provides excellent performance, built-in concurrency support, and strong typing which helps prevent runtime errors. The SQLite database was selected for its simplicity and zero-configuration setup, perfect for a prototype. I implemented custom keyword extraction using Go's text processing libraries rather than relying on the LLM to ensure the most frequent nouns are accurately identified. The vanilla JavaScript frontend keeps the system lightweight and avoids complex build processes, while Docker Compose ensures easy deployment and consistent environments across different systems.
+```yaml
+version: "3.8"
+services:
+  web:
+    build:
+      context: .
+      # Correct the path to your Dockerfile
+      dockerfile: Dockerfile
+    ports:
+      - 8080:3000
+    # Important to bind/mount your codebase dir to /app dir for live reload
+    volumes:
+      - ./:/app
+```
+
+## Q&A
+
+### "command not found: air" or "No such file or directory"
+
+```shell
+export GOPATH=$HOME/xxxxx
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+export PATH=$PATH:$(go env GOPATH)/bin #Confirm this line in your .profile and make sure to source the .profile if you add it!!!
+```
+
+### Error under wsl when ' is included in the bin
+
+Should use `\` to escape the `'` in the bin. related issue: [#305](https://github.com/air-verse/air/issues/305)
+
+### Question: how to do hot compile only and do not run anything?
+
+[#365](https://github.com/air-verse/air/issues/365)
+
+```toml
+[build]
+  cmd = "/usr/bin/true"
+```
+
+### How to Reload the Browser Automatically on Static File Changes
+
+Refer to issue [#512](https://github.com/air-verse/air/issues/512) for additional details.
+
+- Ensure your static files in `include_dir`, `include_ext`, or `include_file`.
+- Ensure your HTML has a `</body>` tag
+- Activate the proxy by configuring the following config:
+
+```toml
+[proxy]
+  enabled = true
+  proxy_port = <air proxy port>
+  app_port = <your server port>
+```
 
 ## Development
 
-### Backend Development
-The backend is built with Go and uses:
-- SQLite database for data persistence
-- YAML configuration management
-- Structured logging
-- JWT authentication
-- Go testing package for unit tests
-- Testcontainers for integration tests
-- LLM integration for text analysis
-- Custom keyword extraction algorithm
-- Error handling for edge cases
+Please note that it requires Go 1.16+ since I use `go mod` to manage dependencies.
 
-### Frontend Development
-The frontend uses vanilla JavaScript with:
-- Modern ES6+ features and async/await
-- Fetch API for HTTP requests with proper error handling
-- Local storage for JWT tokens and user data
-- Responsive CSS Grid/Flexbox layout
-- Dark theme for knowledge blocks with smooth animations
-- Enhanced hover effects and visual feedback
-- Configuration-driven API endpoints
+```shell
+# Fork this project
 
-### Development Tools
-- **Git Hooks**: Pre-commit hooks for code quality
-- **Commitlint**: Conventional commit message validation
-- **Golangci-lint**: Comprehensive Go linting
-- **Go Testing**: Unit tests using Go's built-in testing package
-- **Testcontainers**: Integration tests with containerized dependencies
+# Clone it
+mkdir -p $GOPATH/src/github.com/cosmtrek
+cd $GOPATH/src/github.com/cosmtrek
+git clone git@github.com:<YOUR USERNAME>/air.git
 
-### Testing
-Run the test suite:
-```bash
-# Unit tests
-go test ./...
+# Install dependencies
+cd air
+make ci
 
-# Integration tests
-./scripts/run_integration_tests.sh
-
-# Testcontainers tests
-./scripts/run_testcontainers_tests.sh
-
-# Run all tests
-go test -v ./...
+# Explore it and happy hacking!
+make install
 ```
 
-## Trade-offs Made Due to Time Constraints
+Pull requests are welcome.
 
-Given the 90-minute timebox, I focused on demonstrating the core assignment requirements while maintaining professional development practices. While the system includes comprehensive features like JWT authentication, Swagger UI, git hooks, and testing infrastructure, I prioritized the core LLM text analysis functionality. The custom keyword extraction algorithm was implemented to meet the assignment requirement of finding frequent nouns without LLM assistance. I maintained the existing professional structure and best practices to show understanding of production-ready development, but focused implementation time on the core text analysis, structured data extraction, and search functionality as specified in the assignment requirements.
+### Release
 
-## Contributing
+```shell
+# Checkout to master
+git checkout master
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+# Add the version that needs to be released
+git tag v1.xx.x
+
+# Push to remote
+git push origin v1.xx.x
+
+# The CI will process and release a new version. Wait about 5 min, and you can fetch the latest version
+```
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=air-verse/air&type=Date)](https://star-history.com/#air-verse/air&Date)
+
+## Sponsor
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/default-orange.png)](https://www.buymeacoffee.com/cosmtrek)
+
+Give huge thanks to lots of supporters. I've always been remembering your kindness.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Author
-
-**Shashank Priyadarshi** - [email@ssnk.in](mailto:email@ssnk.in)
+[GNU General Public License v3.0](LICENSE)
