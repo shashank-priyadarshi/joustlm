@@ -62,8 +62,23 @@ type Security struct {
 }
 
 type LLM struct {
-	APIKey string `yaml:"api_key"`
-	Model  string `yaml:"model"`
+	Tokenizer  Tokenizer  `yaml:"tokenizer"`
+	Summarizer Summarizer `yaml:"summarizer"`
+}
+
+type Tokenizer struct {
+	Model     string `yaml:"model"`
+	Config    string `yaml:"config"`
+	MaxLength int    `yaml:"max_length"`
+	Stride    int    `yaml:"stride"`
+	Padding   string `yaml:"padding"`
+}
+
+type Summarizer struct {
+	APIKey   string `yaml:"api_key"`
+	BaseURL  string `yaml:"base_url"`
+	Endpoint string `yaml:"endpoint"`
+	Model    string `yaml:"model"`
 }
 
 func LoadConfig(path string) (*Config, error) {

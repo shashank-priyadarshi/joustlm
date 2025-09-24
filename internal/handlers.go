@@ -36,7 +36,7 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetLLMMetrics(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("LLM metrics request received")
 
-	metrics, err := h.service.GetLLMMetrics()
+	metrics, err := h.service.GetLLMMetrics(r.Context())
 	if err != nil {
 		h.logger.Error("Failed to get LLM metrics", "error", err)
 		pkg.SendError(w, http.StatusInternalServerError)
@@ -69,7 +69,7 @@ func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.service.SignupUser(&req)
+	response, err := h.service.SignupUser(r.Context(), &req)
 	if err != nil {
 		h.logger.Debug("Signup service failed", "error", err, "username", req.Username)
 		h.logger.Error("Signup failed", "error", err, "username", req.Username)
@@ -100,7 +100,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		pkg.SendError(w, http.StatusBadRequest)
 		return
 	}
-	response, err := h.service.LoginUser(&req)
+	response, err := h.service.LoginUser(r.Context(), &req)
 	if err != nil {
 		h.logger.Debug("Login service failed", "error", err, "username", req.Username)
 		h.logger.Error("Login failed", "error", err, "username", req.Username)
@@ -133,7 +133,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := tokenParts[1]
-	err := h.service.LogoutUser(token)
+	err := h.service.LogoutUser(r.Context(), token)
 	if err != nil {
 		h.logger.Debug("Logout service failed", "error", err)
 		h.logger.Error("Logout failed", "error", err)
@@ -160,7 +160,9 @@ func (h *Handler) ExtractKnowledge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req api.LLMAnalysisRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		h.logger.Debug("Failed to decode extract knowledge request", "error", err)
 		h.logger.Error("Failed to decode extract knowledge request", "error", err)
 		pkg.SendError(w, http.StatusBadRequest)
@@ -169,19 +171,19 @@ func (h *Handler) ExtractKnowledge(w http.ResponseWriter, r *http.Request) {
 
 	if req.Text == "" {
 		h.logger.Debug("Extract knowledge failed - empty text")
-		pkg.SendError(w, http.StatusBadRequest)
+		pkg.SendErrorWithMessage(w, http.StatusBadRequest, "text cannot be empty")
 		return
 	}
 
 	if err := pkg.ValidateText(req.Text); err != nil {
 		h.logger.Debug("Extract knowledge failed - text validation", "error", err)
-		pkg.SendError(w, http.StatusBadRequest)
+		pkg.SendErrorWithMessage(w, http.StatusBadRequest, "text validation failed")
 		return
 	}
 
 	h.logger.Debug("Extracting knowledge", "user_id", userID, "text_length", len(req.Text))
 
-	response, err := h.service.ExtractKnowledge(&req, userID)
+	response, err := h.service.ExtractKnowledge(r.Context(), &req, userID)
 	if err != nil {
 		h.logger.Debug("Extract knowledge service failed", "error", err, "user_id", userID)
 		h.logger.Error("Extract knowledge failed", "error", err, "user_id", userID)
@@ -224,7 +226,7 @@ func (h *Handler) GetExtractionResult(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Getting extraction result", "user_id", userID, "analysis_id", analysisID)
 
-	response, err := h.service.GetExtractionResult(analysisID, userID)
+	response, err := h.service.GetExtractionResult(r.Context(), analysisID, userID)
 	if err != nil {
 		h.logger.Debug("Get extraction result service failed", "error", err, "user_id", userID, "analysis_id", analysisID)
 		h.logger.Error("Get extraction result failed", "error", err, "user_id", userID, "analysis_id", analysisID)
@@ -267,7 +269,7 @@ func (h *Handler) GetKnowledgeEntries(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Getting knowledge entries", "user_id", userID, "page", page, "limit", limit)
 
-	response, err := h.service.GetKnowledgeEntries(userID, page, limit)
+	response, err := h.service.GetKnowledgeEntries(r.Context(), userID, page, limit)
 	if err != nil {
 		h.logger.Debug("Get knowledge entries service failed", "error", err, "user_id", userID)
 		h.logger.Error("Get knowledge entries failed", "error", err, "user_id", userID)
@@ -303,7 +305,6 @@ func (h *Handler) CreateKnowledgeEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate input data
 	if err := pkg.ValidateText(req.Text); err != nil {
 		h.logger.Debug("Create knowledge entry failed - text validation", "error", err)
 		pkg.SendError(w, http.StatusBadRequest)
@@ -348,7 +349,7 @@ func (h *Handler) CreateKnowledgeEntry(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Creating knowledge entry", "user_id", userID)
 
-	response, err := h.service.CreateKnowledgeEntry(&req, userID)
+	response, err := h.service.CreateKnowledgeEntry(r.Context(), &req, userID)
 	if err != nil {
 		h.logger.Debug("Create knowledge entry service failed", "error", err, "user_id", userID)
 		h.logger.Error("Create knowledge entry failed", "error", err, "user_id", userID)
@@ -395,7 +396,7 @@ func (h *Handler) UpdateKnowledgeEntry(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Updating knowledge entry", "user_id", userID, "entry_id", entryID)
 
-	response, err := h.service.UpdateKnowledgeEntry(entryID, &req, userID)
+	response, err := h.service.UpdateKnowledgeEntry(r.Context(), entryID, &req, userID)
 	if err != nil {
 		h.logger.Debug("Update knowledge entry service failed", "error", err, "user_id", userID, "entry_id", entryID)
 		h.logger.Error("Update knowledge entry failed", "error", err, "user_id", userID, "entry_id", entryID)
@@ -438,7 +439,7 @@ func (h *Handler) DeleteKnowledgeEntry(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Deleting knowledge entry", "user_id", userID, "entry_id", entryID)
 
-	err = h.service.DeleteKnowledgeEntry(entryID, userID)
+	err = h.service.DeleteKnowledgeEntry(r.Context(), entryID, userID)
 	if err != nil {
 		h.logger.Debug("Delete knowledge entry service failed", "error", err, "user_id", userID, "entry_id", entryID)
 		h.logger.Error("Delete knowledge entry failed", "error", err, "user_id", userID, "entry_id", entryID)
@@ -492,7 +493,7 @@ func (h *Handler) SearchKnowledge(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Debug("Searching knowledge", "user_id", userID, "topic", topic, "keyword", keyword, "sentiment", sentiment)
 
-	response, err := h.service.SearchKnowledge(req, userID)
+	response, err := h.service.SearchKnowledge(r.Context(), req, userID)
 	if err != nil {
 		h.logger.Debug("Search knowledge service failed", "error", err, "user_id", userID)
 		h.logger.Error("Search knowledge failed", "error", err, "user_id", userID)

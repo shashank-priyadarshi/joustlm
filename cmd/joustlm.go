@@ -30,6 +30,7 @@ func main() {
 	core := internal.GetInstance().
 		WithConfig(*CONFIG_PATH).
 		WithLogger().
+		WithLLM().
 		WithDao().
 		WithAuth().
 		WithService().

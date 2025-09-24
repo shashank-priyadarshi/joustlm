@@ -9,46 +9,34 @@ import (
 	"github.com/kljensen/snowball"
 )
 
-// ExtractKeywords extracts the 3 most frequent nouns from text
 func ExtractKeywords(text string) []string {
-	// Clean and normalize text
 	cleanedText := cleanText(text)
 
-	// Tokenize text into words
 	words := tokenizeText(cleanedText)
 
-	// Filter for nouns (simplified approach)
 	nouns := filterNouns(words)
 
-	// Count word frequencies
 	wordCounts := countWords(nouns)
 
-	// Sort by frequency and return top 3
 	return getTopKeywords(wordCounts, 3)
 }
 
-// cleanText removes punctuation and normalizes text
 func cleanText(text string) string {
-	// Convert to lowercase
 	text = strings.ToLower(text)
 
-	// Remove extra whitespace
 	text = strings.TrimSpace(text)
 	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
 
-	// Remove common punctuation but keep apostrophes for contractions
 	text = regexp.MustCompile(`[^\w\s']+`).ReplaceAllString(text, " ")
 
 	return text
 }
 
-// tokenizeText splits text into individual words
 func tokenizeText(text string) []string {
 	words := strings.Fields(text)
 	var filteredWords []string
 
 	for _, word := range words {
-		// Remove apostrophes and filter out very short words
 		word = strings.Trim(word, "'")
 		if len(word) > 2 && isAlphabetic(word) {
 			filteredWords = append(filteredWords, word)
@@ -58,7 +46,6 @@ func tokenizeText(text string) []string {
 	return filteredWords
 }
 
-// isAlphabetic checks if a word contains only alphabetic characters
 func isAlphabetic(word string) bool {
 	for _, r := range word {
 		if !unicode.IsLetter(r) {
@@ -68,11 +55,9 @@ func isAlphabetic(word string) bool {
 	return true
 }
 
-// filterNouns attempts to identify nouns using simple heuristics
 func filterNouns(words []string) []string {
 	var nouns []string
 
-	// Common stop words to exclude
 	stopWords := map[string]bool{
 		"the": true, "a": true, "an": true, "and": true, "or": true, "but": true,
 		"in": true, "on": true, "at": true, "to": true, "for": true, "of": true,
@@ -89,28 +74,23 @@ func filterNouns(words []string) []string {
 	}
 
 	for _, word := range words {
-		// Skip stop words
 		if stopWords[word] {
 			continue
 		}
 
-		// Skip very short words
 		if len(word) < 3 {
 			continue
 		}
 
-		// Skip words that are too long (likely not nouns)
 		if len(word) > 20 {
 			continue
 		}
 
-		// Simple heuristic: words ending in common noun suffixes
 		if hasNounSuffix(word) {
 			nouns = append(nouns, word)
 			continue
 		}
 
-		// Include words that are likely nouns based on length and character patterns
 		if len(word) >= 4 && len(word) <= 12 {
 			nouns = append(nouns, word)
 		}
@@ -119,7 +99,6 @@ func filterNouns(words []string) []string {
 	return nouns
 }
 
-// hasNounSuffix checks if a word has common noun suffixes
 func hasNounSuffix(word string) bool {
 	nounSuffixes := []string{
 		"tion", "sion", "ness", "ment", "ity", "ty", "er", "or", "ist", "ism",
@@ -135,15 +114,12 @@ func hasNounSuffix(word string) bool {
 	return false
 }
 
-// countWords counts the frequency of each word
 func countWords(words []string) map[string]int {
 	wordCounts := make(map[string]int)
 
 	for _, word := range words {
-		// Stem the word to group similar words together
 		stemmed, err := snowball.Stem(word, "english", true)
 		if err != nil {
-			// If stemming fails, use the original word
 			stemmed = word
 		}
 
@@ -153,9 +129,7 @@ func countWords(words []string) map[string]int {
 	return wordCounts
 }
 
-// getTopKeywords returns the top N most frequent keywords
 func getTopKeywords(wordCounts map[string]int, n int) []string {
-	// Convert map to slice of pairs
 	type wordCount struct {
 		word  string
 		count int
@@ -166,7 +140,6 @@ func getTopKeywords(wordCounts map[string]int, n int) []string {
 		pairs = append(pairs, wordCount{word, count})
 	}
 
-	// Sort by count (descending), then by word (ascending) for consistency
 	sort.Slice(pairs, func(i, j int) bool {
 		if pairs[i].count == pairs[j].count {
 			return pairs[i].word < pairs[j].word
@@ -174,21 +147,17 @@ func getTopKeywords(wordCounts map[string]int, n int) []string {
 		return pairs[i].count > pairs[j].count
 	})
 
-	// Extract top N words
 	var keywords []string
 	for i := 0; i < n && i < len(pairs); i++ {
 		keywords = append(keywords, pairs[i].word)
 	}
 
-	// If we don't have enough keywords, pad with generic ones
 	genericKeywords := []string{"content", "information", "text", "data", "analysis"}
 	for len(keywords) < n {
 		keyword := genericKeywords[len(keywords)%len(genericKeywords)]
-		// Avoid duplicates
 		if !contains(keywords, keyword) {
 			keywords = append(keywords, keyword)
 		} else {
-			// If we've exhausted generic keywords, break
 			break
 		}
 	}
@@ -196,7 +165,6 @@ func getTopKeywords(wordCounts map[string]int, n int) []string {
 	return keywords
 }
 
-// contains checks if a slice contains a string
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
@@ -206,11 +174,9 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
-// CalculateConfidence calculates a confidence score based on text analysis
 func CalculateConfidence(text string, extractedData map[string]interface{}) float64 {
-	confidence := 0.5 // Base confidence
+	confidence := 0.5
 
-	// Adjust based on text length
 	if len(text) > 100 {
 		confidence += 0.1
 	}
@@ -218,7 +184,6 @@ func CalculateConfidence(text string, extractedData map[string]interface{}) floa
 		confidence += 0.1
 	}
 
-	// Adjust based on extracted data quality
 	if title, ok := extractedData["title"].(string); ok && len(title) > 0 {
 		confidence += 0.1
 	}
@@ -231,7 +196,6 @@ func CalculateConfidence(text string, extractedData map[string]interface{}) floa
 		confidence += 0.1
 	}
 
-	// Ensure confidence is within bounds
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
@@ -242,13 +206,10 @@ func CalculateConfidence(text string, extractedData map[string]interface{}) floa
 	return confidence
 }
 
-// PreprocessText prepares text for LLM analysis
 func PreprocessText(text string) string {
-	// Remove excessive whitespace
 	text = strings.TrimSpace(text)
 	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
 
-	// Remove excessive punctuation
 	text = regexp.MustCompile(`[.]{3,}`).ReplaceAllString(text, "...")
 	text = regexp.MustCompile(`[!]{2,}`).ReplaceAllString(text, "!")
 	text = regexp.MustCompile(`[?]{2,}`).ReplaceAllString(text, "?")

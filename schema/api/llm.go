@@ -8,6 +8,7 @@ import (
 
 type LLMAnalysisRequest struct {
 	Text string `json:"text" validate:"required"`
+	Model string `json:"model" validate:"required"`
 }
 
 type LLMAnalysisResponse struct {

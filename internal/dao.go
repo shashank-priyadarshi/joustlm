@@ -394,15 +394,15 @@ func (d *Dao) SearchAnalyses(topic, keyword, sentiment string, page, limit int) 
 	countArgs := []interface{}{}
 
 	if topic != "" {
-		query += " AND JSON_EXTRACT(topics, '$') LIKE ?"
-		countQuery += " AND JSON_EXTRACT(topics, '$') LIKE ?"
+		query += " AND topics LIKE ?"
+		countQuery += " AND topics LIKE ?"
 		args = append(args, "%"+topic+"%")
 		countArgs = append(countArgs, "%"+topic+"%")
 	}
 
 	if keyword != "" {
-		query += " AND JSON_EXTRACT(keywords, '$') LIKE ?"
-		countQuery += " AND JSON_EXTRACT(keywords, '$') LIKE ?"
+		query += " AND keywords LIKE ?"
+		countQuery += " AND keywords LIKE ?"
 		args = append(args, "%"+keyword+"%")
 		countArgs = append(countArgs, "%"+keyword+"%")
 	}

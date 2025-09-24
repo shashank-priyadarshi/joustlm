@@ -25,5 +25,14 @@ server:
     password_salt: "joustlm_password_salt_2024_change_in_production"
     token_expiry_hours: 24
   llm:
-    api_key: "your-openai-api-key"
-    model: "gpt-3.5-turbo"
+    tokenizer:
+      model: "bert-base-uncased"
+      config: "tokenizer.json"
+      max_length: 4000
+      stride: 512
+      padding: "max_length"
+    summarizer:
+      base_url: "https://generativelanguage.googleapis.com/v1beta/models"
+      endpoint: "/gemini-2.0-flash:generateContent"
+      api_key: ""
+      model: "gemini-2.0-flash"

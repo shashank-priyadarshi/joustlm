@@ -53,14 +53,6 @@ func (s *Server) RegisterRoutes(handler *Handler, service *Service) {
 
 	s.router.Handle("/health", mLogging(mCORS(http.HandlerFunc(s.handler.HandleHealth))))
 
-	s.router.Handle("/", mLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, frontendPath+"/index.html")
-		} else {
-			http.FileServer(http.Dir(frontendPath)).ServeHTTP(w, r)
-		}
-	})))
-
 	s.router.Handle("/assets/", mLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.FileServer(http.Dir(".")).ServeHTTP(w, r)
 	})))
@@ -171,7 +163,7 @@ func (s *Server) RegisterRoutes(handler *Handler, service *Service) {
 		}
 	})))))
 
-	s.router.Handle("/api/search", mLogging(mCORS(mAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.router.Handle("/api/v1/search", mLogging(mCORS(mAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			handler.SearchKnowledge(w, r)
 		} else {
@@ -182,4 +174,12 @@ func (s *Server) RegisterRoutes(handler *Handler, service *Service) {
 	s.router.Handle("/api/", mLogging(mCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pkg.SendError(w, http.StatusNotFound)
 	}))))
+
+	s.router.Handle("/", mLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, frontendPath+"/index.html")
+		} else {
+			http.FileServer(http.Dir(frontendPath)).ServeHTTP(w, r)
+		}
+	})))
 }

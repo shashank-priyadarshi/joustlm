@@ -1,13 +1,16 @@
 package internal
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,23 +20,26 @@ import (
 	"go.ssnk.in/joustlm/pkg"
 	"go.ssnk.in/joustlm/schema/api"
 	"go.ssnk.in/joustlm/schema/db"
+	"google.golang.org/genai"
 )
 
 type Service struct {
 	logger *logger.Logger
+	llm    *LLM
 	dao    *Dao
 	config *config.Security
 }
 
-func NewService(logger *logger.Logger, config *config.Security, dao *Dao) *Service {
+func NewService(logger *logger.Logger, config *config.Security, llm *LLM, dao *Dao) *Service {
 	return &Service{
 		logger: logger,
+		llm:    llm,
 		dao:    dao,
 		config: config,
 	}
 }
 
-func (s *Service) GetLLMMetrics() (*api.MetricsResponse, error) {
+func (s *Service) GetLLMMetrics(ctx context.Context) (*api.MetricsResponse, error) {
 	s.logger.Debug("Getting LLM metrics")
 
 	metrics, err := s.dao.GetLLMMetrics()
@@ -47,7 +53,7 @@ func (s *Service) GetLLMMetrics() (*api.MetricsResponse, error) {
 	}, nil
 }
 
-func (s *Service) ExtractKnowledge(req *api.LLMAnalysisRequest, userID uuid.UUID) (*api.LLMAnalysisResponse, error) {
+func (s *Service) ExtractKnowledge(ctx context.Context, req *api.LLMAnalysisRequest, userID uuid.UUID) (*api.LLMAnalysisResponse, error) {
 	s.logger.Debug("Starting LLM knowledge extraction", "user_id", userID, "text_length", len(req.Text))
 
 	if req.Text == "" {
@@ -55,32 +61,90 @@ func (s *Service) ExtractKnowledge(req *api.LLMAnalysisRequest, userID uuid.UUID
 		return nil, fmt.Errorf("text cannot be empty")
 	}
 
-	// Validate text input
 	if err := pkg.ValidateText(req.Text); err != nil {
 		s.logger.Debug("Text validation failed", "error", err)
 		return nil, fmt.Errorf("text validation failed: %w", err)
 	}
 
-	// Preprocess text
 	processedText := pkg.PreprocessText(req.Text)
 
-	// Create LLM client (using mock for now, can be configured to use real LLM)
-	var llmClient pkg.LLMClient
-	// TODO: Configure based on environment or config
-	// if s.config.LLM.APIKey != "" {
-	//     llmClient = pkg.NewOpenAIClient(s.config.LLM.APIKey, s.config.LLM.Model)
-	// } else {
-		llmClient = pkg.NewMockLLMClient()
-	// }
+	systemPrompt := `You are a helpful assistant that extracts structured information from text.
+Always respond with valid JSON in the following format:
+{
+  "title": "A concise title for the text",
+  "summary": "A 1-2 sentence summary of the main points",
+  "topics": ["topic1", "topic2", "topic3"],
+  "sentiment": "positive|neutral|negative",
+  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "confidence": 0.85
+}
 
-	// Analyze text with LLM
-	response, err := llmClient.AnalyzeText(processedText)
+Focus on:
+- Creating a clear, concise title
+- Summarizing the main points in 1-2 sentences
+- Identifying exactly 3 key topics, topics should be unique and not more than 3 or less than 1
+- Determining the overall sentiment
+- Extracting 3-5 relevant keywords, keywords should be unique and not more than 5 or less than 3
+- Providing a confidence score between 0.0 and 1.0
+
+Respond with only the JSON, no additional text.`
+
+	userPrompt := fmt.Sprintf(`Analyze the following text and extract structured information:
+
+Text: "%s"
+
+Please provide a JSON response with the structure specified above.`, processedText)
+
+	parts := []*genai.Part{
+		{Text: systemPrompt},
+		{Text: userPrompt},
+	}
+
+	aiResponse, err := s.llm.summarizer.Models().GenerateContent(ctx, req.Model, []*genai.Content{{Parts: parts}}, nil)
 	if err != nil {
 		s.logger.Error("LLM analysis failed", "error", err, "user_id", userID)
 		return nil, fmt.Errorf("LLM analysis failed: %w", err)
 	}
 
-	// Validate LLM response
+	var llmResult struct {
+		Title      string   `json:"title"`
+		Summary    string   `json:"summary"`
+		Topics     []string `json:"topics"`
+		Sentiment  string   `json:"sentiment"`
+		Keywords   []string `json:"keywords"`
+		Confidence float64  `json:"confidence"`
+	}
+
+	s.logger.Debug("LLM response", "response", aiResponse.Text())
+
+	responseText := aiResponse.Text()
+	if strings.HasPrefix(responseText, "```json") {
+		responseText = strings.TrimPrefix(responseText, "```json")
+		responseText = strings.TrimSuffix(responseText, "```")
+		responseText = strings.TrimSpace(responseText)
+	} else if strings.HasPrefix(responseText, "```") {
+		responseText = strings.TrimPrefix(responseText, "```")
+		responseText = strings.TrimSuffix(responseText, "```")
+		responseText = strings.TrimSpace(responseText)
+	}
+
+	if err := json.Unmarshal([]byte(responseText), &llmResult); err != nil {
+		s.logger.Error("Failed to parse LLM response", "error", err, "response", responseText)
+		return nil, fmt.Errorf("failed to parse LLM response: %w", err)
+	}
+
+	s.logger.Debug("LLM result", "result", llmResult)
+
+	response := &api.LLMAnalysisResponse{
+		Text:       req.Text,
+		Title:      llmResult.Title,
+		Summary:    llmResult.Summary,
+		Topics:     llmResult.Topics,
+		Sentiment:  llmResult.Sentiment,
+		Keywords:   llmResult.Keywords,
+		Confidence: llmResult.Confidence,
+	}
+
 	if err := pkg.ValidateSummary(response.Summary); err != nil {
 		s.logger.Debug("Summary validation failed", "error", err)
 		response.Summary = "Analysis completed successfully."
@@ -111,22 +175,20 @@ func (s *Service) ExtractKnowledge(req *api.LLMAnalysisRequest, userID uuid.UUID
 		response.Title = "Untitled Analysis"
 	}
 
-	// Generate unique ID and timestamp
 	analysisID := uuid.New()
 	now := time.Now()
 	response.ID = analysisID
-	response.CreatedAt = now.Format(time.RFC3339)
+	response.CreatedAt = now
 
-	// Store analysis in database
 	analysis := &db.Analysis{
 		ID:         analysisID,
 		UserID:     userID,
 		Text:       req.Text,
 		Title:      response.Title,
 		Summary:    response.Summary,
-		Topics:     response.Topics,
+		Topics:     strings.Join(response.Topics, ","),
 		Sentiment:  response.Sentiment,
-		Keywords:   response.Keywords,
+		Keywords:   strings.Join(response.Keywords, ","),
 		Confidence: response.Confidence,
 	}
 
@@ -140,7 +202,7 @@ func (s *Service) ExtractKnowledge(req *api.LLMAnalysisRequest, userID uuid.UUID
 	return response, nil
 }
 
-func (s *Service) SignupUser(req *api.SignupRequest) (*api.SignupResponse, error) {
+func (s *Service) SignupUser(ctx context.Context, req *api.SignupRequest) (*api.SignupResponse, error) {
 	s.logger.Debug("Starting user signup", "username", req.Username)
 
 	existingUser, err := s.dao.GetUserByUsername(req.Username)
@@ -183,7 +245,7 @@ func (s *Service) SignupUser(req *api.SignupRequest) (*api.SignupResponse, error
 	}, nil
 }
 
-func (s *Service) LoginUser(req *api.LoginRequest) (*api.LoginResponse, error) {
+func (s *Service) LoginUser(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	s.logger.Debug("Starting user login", "username", req.Username)
 
 	user, err := s.dao.GetUserByUsername(req.Username)
@@ -197,11 +259,13 @@ func (s *Service) LoginUser(req *api.LoginRequest) (*api.LoginResponse, error) {
 		s.logger.Debug("User not found", "username", req.Username)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+
 	if user.PasswordHash != s.hashPassword(req.Password) {
 		s.logger.Debug("Password mismatch", "username", req.Username)
 		s.logger.Error("Invalid password", "username", req.Username)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+
 	sessionID := s.generateSecureRandomString(32)
 	err = s.dao.UpdateUserSession(user.ID.String(), sessionID)
 	if err != nil {
@@ -209,6 +273,7 @@ func (s *Service) LoginUser(req *api.LoginRequest) (*api.LoginResponse, error) {
 		s.logger.Error("Failed to update user session", "error", err, "user_id", user.ID)
 		return nil, fmt.Errorf("failed to update user session: %w", err)
 	}
+
 	token := s.generateJWT(user.ID.String())
 	refreshToken := s.generateRefreshToken()
 	expiresAt := time.Now().Add(time.Duration(s.config.TokenExpiry) * time.Hour).Format(time.RFC3339)
@@ -222,7 +287,7 @@ func (s *Service) LoginUser(req *api.LoginRequest) (*api.LoginResponse, error) {
 	}, nil
 }
 
-func (s *Service) LogoutUser(token string) error {
+func (s *Service) LogoutUser(ctx context.Context, token string) error {
 	s.logger.Debug("Starting user logout", "token_length", len(token))
 
 	userID, err := s.validateJWT(token)
@@ -231,6 +296,7 @@ func (s *Service) LogoutUser(token string) error {
 		s.logger.Error("Failed to validate JWT token", "error", err)
 		return fmt.Errorf("invalid token: %w", err)
 	}
+
 	s.logger.Debug("JWT validated successfully", "user_id", userID)
 
 	err = s.dao.ClearUserSession(userID)
@@ -244,7 +310,7 @@ func (s *Service) LogoutUser(token string) error {
 	return nil
 }
 
-func (s *Service) ValidateSession(sessionID string) (*db.User, error) {
+func (s *Service) ValidateSession(ctx context.Context, sessionID string) (*db.User, error) {
 	s.logger.Debug("Starting session validation", "session_id", sessionID)
 
 	user, err := s.dao.GetUserBySessionID(sessionID)
@@ -262,7 +328,7 @@ func (s *Service) ValidateSession(sessionID string) (*db.User, error) {
 	return user, nil
 }
 
-func (s *Service) GetExtractionResult(id uuid.UUID, userID uuid.UUID) (*api.LLMAnalysisResponse, error) {
+func (s *Service) GetExtractionResult(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*api.LLMAnalysisResponse, error) {
 	s.logger.Debug("Getting extraction result", "analysis_id", id, "user_id", userID)
 
 	analysis, err := s.dao.GetAnalysisByID(id)
@@ -276,7 +342,6 @@ func (s *Service) GetExtractionResult(id uuid.UUID, userID uuid.UUID) (*api.LLMA
 		return nil, fmt.Errorf("analysis not found")
 	}
 
-	// Check if user has access to this analysis
 	if analysis.UserID != userID {
 		s.logger.Debug("Access denied to analysis", "analysis_id", id, "user_id", userID)
 		return nil, fmt.Errorf("access denied")
@@ -287,18 +352,18 @@ func (s *Service) GetExtractionResult(id uuid.UUID, userID uuid.UUID) (*api.LLMA
 		Text:       analysis.Text,
 		Title:      analysis.Title,
 		Summary:    analysis.Summary,
-		Topics:     analysis.Topics,
+		Topics:     strings.Split(analysis.Topics, ","),
 		Sentiment:  analysis.Sentiment,
-		Keywords:   analysis.Keywords,
+		Keywords:   strings.Split(analysis.Keywords, ","),
 		Confidence: analysis.Confidence,
-		CreatedAt:  analysis.CreatedAt.Format(time.RFC3339),
+		CreatedAt:  analysis.CreatedAt,
 	}
 
 	s.logger.Debug("Extraction result retrieved", "analysis_id", id, "user_id", userID)
 	return response, nil
 }
 
-func (s *Service) GetKnowledgeEntries(userID uuid.UUID, page, limit int) (*api.GetKnowledgeResponse, error) {
+func (s *Service) GetKnowledgeEntries(ctx context.Context, userID uuid.UUID, page, limit int) (*api.GetKnowledgeResponse, error) {
 	s.logger.Debug("Starting knowledge entries retrieval", "user_id", userID, "page", page, "limit", limit)
 
 	analyses, totalCount, err := s.dao.GetAnalysesByUserID(userID, page, limit)
@@ -316,12 +381,12 @@ func (s *Service) GetKnowledgeEntries(userID uuid.UUID, page, limit int) (*api.G
 			Text:       analysis.Text,
 			Title:      analysis.Title,
 			Summary:    analysis.Summary,
-			Topics:     analysis.Topics,
+			Topics:     strings.Split(analysis.Topics, ","),
 			Sentiment:  analysis.Sentiment,
-			Keywords:   analysis.Keywords,
+			Keywords:   strings.Split(analysis.Keywords, ","),
 			Confidence: analysis.Confidence,
-			CreatedAt:  analysis.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:  analysis.UpdatedAt.Format(time.RFC3339),
+			CreatedAt:  analysis.CreatedAt,
+			UpdatedAt:  analysis.UpdatedAt,
 		})
 	}
 
@@ -343,10 +408,9 @@ func (s *Service) GetKnowledgeEntries(userID uuid.UUID, page, limit int) (*api.G
 	}, nil
 }
 
-func (s *Service) CreateKnowledgeEntry(req *api.CreateKnowledgeRequest, userID uuid.UUID) (*api.KnowledgeBaseEntry, error) {
+func (s *Service) CreateKnowledgeEntry(ctx context.Context, req *api.CreateKnowledgeRequest, userID uuid.UUID) (*api.KnowledgeBaseEntry, error) {
 	s.logger.Debug("Starting knowledge entry creation", "user_id", userID)
 
-	// Validate input data
 	if err := pkg.ValidateText(req.Text); err != nil {
 		s.logger.Debug("Text validation failed", "error", err)
 		return nil, fmt.Errorf("text validation failed: %w", err)
@@ -391,9 +455,9 @@ func (s *Service) CreateKnowledgeEntry(req *api.CreateKnowledgeRequest, userID u
 		Text:       req.Text,
 		Title:      req.Title,
 		Summary:    req.Summary,
-		Topics:     req.Topics,
+		Topics:     strings.Join(req.Topics, ","),
 		Sentiment:  req.Sentiment,
-		Keywords:   req.Keywords,
+		Keywords:   strings.Join(req.Keywords, ","),
 		Confidence: req.Confidence,
 	}
 
@@ -413,15 +477,15 @@ func (s *Service) CreateKnowledgeEntry(req *api.CreateKnowledgeRequest, userID u
 		Sentiment:  req.Sentiment,
 		Keywords:   req.Keywords,
 		Confidence: req.Confidence,
-		CreatedAt:  now.Format(time.RFC3339),
-		UpdatedAt:  now.Format(time.RFC3339),
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	s.logger.Info("Knowledge entry created successfully", "analysis_id", analysisID, "user_id", userID)
 	return entry, nil
 }
 
-func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeRequest, userID uuid.UUID) (*api.KnowledgeBaseEntry, error) {
+func (s *Service) UpdateKnowledgeEntry(ctx context.Context, id uuid.UUID, req *api.UpdateKnowledgeRequest, userID uuid.UUID) (*api.KnowledgeBaseEntry, error) {
 	s.logger.Debug("Starting knowledge entry update", "analysis_id", id, "user_id", userID)
 
 	analysis, err := s.dao.GetAnalysisByID(id)
@@ -435,13 +499,11 @@ func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeReq
 		return nil, fmt.Errorf("analysis not found")
 	}
 
-	// Check if user has access to this analysis
 	if analysis.UserID != userID {
 		s.logger.Debug("Access denied to analysis", "analysis_id", id, "user_id", userID)
 		return nil, fmt.Errorf("access denied")
 	}
 
-	// Update fields if provided with validation
 	if req.Title != "" {
 		if err := pkg.ValidateTitle(req.Title); err != nil {
 			s.logger.Debug("Title validation failed", "error", err)
@@ -449,6 +511,7 @@ func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeReq
 		}
 		analysis.Title = req.Title
 	}
+
 	if req.Summary != "" {
 		if err := pkg.ValidateSummary(req.Summary); err != nil {
 			s.logger.Debug("Summary validation failed", "error", err)
@@ -456,13 +519,15 @@ func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeReq
 		}
 		analysis.Summary = req.Summary
 	}
+
 	if len(req.Topics) > 0 {
 		if err := pkg.ValidateTopics(req.Topics); err != nil {
 			s.logger.Debug("Topics validation failed", "error", err)
 			return nil, fmt.Errorf("topics validation failed: %w", err)
 		}
-		analysis.Topics = req.Topics
+		analysis.Topics = strings.Join(req.Topics, ",")
 	}
+
 	if req.Sentiment != "" {
 		if err := pkg.ValidateSentiment(req.Sentiment); err != nil {
 			s.logger.Debug("Sentiment validation failed", "error", err)
@@ -470,13 +535,15 @@ func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeReq
 		}
 		analysis.Sentiment = req.Sentiment
 	}
+
 	if len(req.Keywords) > 0 {
 		if err := pkg.ValidateKeywords(req.Keywords); err != nil {
 			s.logger.Debug("Keywords validation failed", "error", err)
 			return nil, fmt.Errorf("keywords validation failed: %w", err)
 		}
-		analysis.Keywords = req.Keywords
+		analysis.Keywords = strings.Join(req.Keywords, ",")
 	}
+
 	if req.Confidence > 0 {
 		if err := pkg.ValidateConfidence(req.Confidence); err != nil {
 			s.logger.Debug("Confidence validation failed", "error", err)
@@ -497,19 +564,19 @@ func (s *Service) UpdateKnowledgeEntry(id uuid.UUID, req *api.UpdateKnowledgeReq
 		Text:       analysis.Text,
 		Title:      analysis.Title,
 		Summary:    analysis.Summary,
-		Topics:     analysis.Topics,
+		Topics:     strings.Split(analysis.Topics, ","),
 		Sentiment:  analysis.Sentiment,
-		Keywords:   analysis.Keywords,
+		Keywords:   strings.Split(analysis.Keywords, ","),
 		Confidence: analysis.Confidence,
-		CreatedAt:  analysis.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  analysis.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:  analysis.CreatedAt,
+		UpdatedAt:  analysis.UpdatedAt,
 	}
 
 	s.logger.Info("Knowledge entry updated successfully", "analysis_id", id, "user_id", userID)
 	return entry, nil
 }
 
-func (s *Service) DeleteKnowledgeEntry(id uuid.UUID, userID uuid.UUID) error {
+func (s *Service) DeleteKnowledgeEntry(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	s.logger.Debug("Starting knowledge entry deletion", "analysis_id", id, "user_id", userID)
 
 	analysis, err := s.dao.GetAnalysisByID(id)
@@ -523,7 +590,6 @@ func (s *Service) DeleteKnowledgeEntry(id uuid.UUID, userID uuid.UUID) error {
 		return fmt.Errorf("analysis not found")
 	}
 
-	// Check if user has access to this analysis
 	if analysis.UserID != userID {
 		s.logger.Debug("Access denied to analysis", "analysis_id", id, "user_id", userID)
 		return fmt.Errorf("access denied")
@@ -539,7 +605,7 @@ func (s *Service) DeleteKnowledgeEntry(id uuid.UUID, userID uuid.UUID) error {
 	return nil
 }
 
-func (s *Service) SearchKnowledge(req *api.SearchRequest, userID uuid.UUID) (*api.SearchResponse, error) {
+func (s *Service) SearchKnowledge(ctx context.Context, req *api.SearchRequest, userID uuid.UUID) (*api.SearchResponse, error) {
 	s.logger.Debug("Starting knowledge search", "user_id", userID, "topic", req.Topic, "keyword", req.Keyword, "sentiment", req.Sentiment)
 
 	analyses, totalCount, err := s.dao.SearchAnalyses(req.Topic, req.Keyword, req.Sentiment, req.Page, req.Limit)
@@ -550,7 +616,6 @@ func (s *Service) SearchKnowledge(req *api.SearchRequest, userID uuid.UUID) (*ap
 
 	results := make([]api.KnowledgeBaseEntry, 0, len(analyses))
 	for _, analysis := range analyses {
-		// Only include analyses that belong to the user
 		if analysis.UserID == userID {
 			results = append(results, api.KnowledgeBaseEntry{
 				ID:         analysis.ID,
@@ -558,12 +623,12 @@ func (s *Service) SearchKnowledge(req *api.SearchRequest, userID uuid.UUID) (*ap
 				Text:       analysis.Text,
 				Title:      analysis.Title,
 				Summary:    analysis.Summary,
-				Topics:     analysis.Topics,
+				Topics:     strings.Split(analysis.Topics, ","),
 				Sentiment:  analysis.Sentiment,
-				Keywords:   analysis.Keywords,
+				Keywords:   strings.Split(analysis.Keywords, ","),
 				Confidence: analysis.Confidence,
-				CreatedAt:  analysis.CreatedAt.Format(time.RFC3339),
-				UpdatedAt:  analysis.UpdatedAt.Format(time.RFC3339),
+				CreatedAt:  analysis.CreatedAt,
+				UpdatedAt:  analysis.UpdatedAt,
 			})
 		}
 	}
@@ -586,7 +651,6 @@ func (s *Service) SearchKnowledge(req *api.SearchRequest, userID uuid.UUID) (*ap
 	}, nil
 }
 
-
 func (s *Service) generateJWT(userID string) string {
 	now := time.Now()
 
@@ -608,14 +672,12 @@ func (s *Service) generateJWT(userID string) string {
 }
 
 func (s *Service) generateRefreshToken() string {
-
 	bytes := make([]byte, 32)
 	rand.Read(bytes)
 	timestamp := time.Now().Unix()
 	tokenData := fmt.Sprintf("%d:%s", timestamp, hex.EncodeToString(bytes))
 	return base64.URLEncoding.EncodeToString([]byte(tokenData))
 }
-
 
 func (s *Service) generateSecureRandomString(length int) string {
 	return s.generateRandomString(length)

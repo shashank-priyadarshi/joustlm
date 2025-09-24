@@ -83,8 +83,8 @@ func ValidateText(text string) error {
 		return &ValidationError{Message: "text must be at least 10 characters long"}
 	}
 
-	if len(text) > 10000 {
-		return &ValidationError{Message: "text cannot exceed 10,000 characters"}
+	if len(text) > 100000 {
+		return &ValidationError{Message: "text cannot exceed 100,000 characters"}
 	}
 
 	return nil
@@ -103,10 +103,11 @@ func ValidateTopics(topics []string) error {
 		if topic == "" {
 			return &ValidationError{Message: "topic cannot be empty"}
 		}
+
 		if len(topic) > 100 {
 			return &ValidationError{Message: "topic cannot exceed 100 characters"}
 		}
-		// Check for duplicates
+
 		for j := i + 1; j < len(topics); j++ {
 			if topic == topics[j] {
 				return &ValidationError{Message: "duplicate topics are not allowed"}
@@ -122,18 +123,19 @@ func ValidateKeywords(keywords []string) error {
 		return &ValidationError{Message: "keywords cannot be empty"}
 	}
 
-	if len(keywords) > 3 {
-		return &ValidationError{Message: "keywords cannot exceed 3 items"}
+	if len(keywords) > 5 {
+		return &ValidationError{Message: "keywords cannot exceed 5 items"}
 	}
 
 	for i, keyword := range keywords {
 		if keyword == "" {
 			return &ValidationError{Message: "keyword cannot be empty"}
 		}
-		if len(keyword) > 50 {
-			return &ValidationError{Message: "keyword cannot exceed 50 characters"}
+
+		if len(keyword) > 100 {
+			return &ValidationError{Message: "keyword cannot exceed 100 characters"}
 		}
-		// Check for duplicates
+
 		for j := i + 1; j < len(keywords); j++ {
 			if keyword == keywords[j] {
 				return &ValidationError{Message: "duplicate keywords are not allowed"}

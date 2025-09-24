@@ -178,7 +178,8 @@ func TestMAuth(t *testing.T) {
 		JWTSecret: "test-secret",
 	}
 	dao := &Dao{}
-	service := NewService(&log, conf, dao)
+	mockLLM := createMockLLM()
+	service := NewService(&log, conf, mockLLM, dao)
 
 	// Create a test handler that requires auth
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

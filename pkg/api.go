@@ -18,6 +18,16 @@ func SendError(w http.ResponseWriter, code int) {
 	})
 }
 
+func SendErrorWithMessage(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+
+	json.NewEncoder(w).Encode(api.ErrorResponse{
+		Code:    code,
+		Message: message,
+	})
+}
+
 func getStandardErrorMessage(code int) string {
 	switch code {
 	case http.StatusBadRequest:

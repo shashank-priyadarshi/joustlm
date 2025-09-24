@@ -1,16 +1,11 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "JoustLM LLM Knowledge Extractor API",
-        "description": "A modern LLM knowledge extractor service that takes unstructured text input and uses an LLM to produce both summaries and structured data. Built as a 90-minute take-home assignment.",
+        "title": "JoustLM API",
+        "description": "API for LLM-powered knowledge extraction and management",
         "version": "1.0.0",
         "contact": {
-            "name": "Shashank Priyadarshi",
-            "email": "email@ssnk.in"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
+            "name": "JoustLM Team"
         }
     },
     "servers": [
@@ -19,33 +14,14 @@
             "description": "Development server"
         }
     ],
-    "tags": [
-        {
-            "name": "Authentication",
-            "description": "User authentication and session management"
-        },
-        {
-            "name": "LLM Extraction",
-            "description": "Core LLM text analysis and knowledge extraction (Assignment Core)"
-        },
-        {
-            "name": "Knowledge Management",
-            "description": "Knowledge base management operations"
-        },
-        {
-            "name": "Health",
-            "description": "System health and status checks"
-        }
-    ],
     "paths": {
         "/health": {
             "get": {
+                "summary": "Health check",
+                "description": "Check the health status of the API",
                 "tags": [
                     "Health"
                 ],
-                "summary": "Health check",
-                "description": "Returns the health status of the service",
-                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "Service is healthy",
@@ -60,14 +36,34 @@
                 }
             }
         },
+        "/metrics": {
+            "get": {
+                "summary": "Get LLM metrics",
+                "description": "Retrieve metrics about LLM usage and analysis",
+                "tags": [
+                    "Metrics"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metrics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MetricsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/signup": {
             "post": {
+                "summary": "User signup",
+                "description": "Create a new user account",
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "User signup",
-                "description": "Register a new user account",
-                "operationId": "signup",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -79,7 +75,7 @@
                     }
                 },
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "User created successfully",
                         "content": {
                             "application/json": {
@@ -90,7 +86,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid input",
+                        "description": "Bad request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -100,17 +96,7 @@
                         }
                     },
                     "409": {
-                        "description": "Conflict - username already exists",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Username already exists",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -124,12 +110,11 @@
         },
         "/api/v1/auth/login": {
             "post": {
+                "summary": "User login",
+                "description": "Authenticate user and get access token",
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "User login",
-                "description": "Authenticate user and return JWT tokens",
-                "operationId": "login",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -151,28 +136,8 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "Bad request - invalid input",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
                     "401": {
-                        "description": "Unauthorized - invalid credentials",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Invalid credentials",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -186,33 +151,29 @@
         },
         "/api/v1/auth/logout": {
             "post": {
+                "summary": "User logout",
+                "description": "Logout user and invalidate session",
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "User logout",
-                "description": "Logout user and invalidate session",
-                "operationId": "logout",
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "Logout successful"
-                    },
-                    "401": {
-                        "description": "Unauthorized - invalid or missing token",
+                    "200": {
+                        "description": "Logout successful",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/CommonResponse"
                                 }
                             }
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
+                    "401": {
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -226,12 +187,11 @@
         },
         "/api/v1/extract": {
             "post": {
-                "tags": [
-                    "LLM Extraction"
-                ],
                 "summary": "Extract knowledge from text",
-                "description": "Submit unstructured text to LLM for analysis and extract structured knowledge (Assignment Core Requirement)",
-                "operationId": "extractKnowledge",
+                "description": "Analyze text using LLM to extract knowledge",
+                "tags": [
+                    "LLM Analysis"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -249,7 +209,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Knowledge extracted successfully",
+                        "description": "Analysis completed successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -259,7 +219,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid input or empty text",
+                        "description": "Bad request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -269,17 +229,7 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error - LLM API failure",
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -293,12 +243,11 @@
         },
         "/api/v1/extract/{id}": {
             "get": {
-                "tags": [
-                    "LLM Extraction"
-                ],
                 "summary": "Get extraction result",
-                "description": "Retrieve extraction result by ID",
-                "operationId": "getExtractionResult",
+                "description": "Retrieve the result of a specific analysis",
+                "tags": [
+                    "LLM Analysis"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -308,8 +257,8 @@
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "UUID of the extraction result",
                         "required": true,
+                        "description": "Analysis ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -318,7 +267,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Extraction result retrieved successfully",
+                        "description": "Analysis result retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -327,8 +276,8 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "Bad request - invalid extraction ID",
+                    "401": {
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -337,8 +286,8 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized - invalid or missing token",
+                    "403": {
+                        "description": "Access denied",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -348,17 +297,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not found - extraction result not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Analysis not found",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -372,12 +311,11 @@
         },
         "/api/v1/knowledge": {
             "get": {
-                "tags": [
-                    "Knowledge Management"
-                ],
                 "summary": "Get knowledge entries",
-                "description": "Retrieve paginated list of knowledge entries",
-                "operationId": "getKnowledge",
+                "description": "Retrieve paginated knowledge entries for the authenticated user",
+                "tags": [
+                    "Knowledge Base"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -387,8 +325,7 @@
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "Page number for pagination",
-                        "required": false,
+                        "description": "Page number",
                         "schema": {
                             "type": "integer",
                             "minimum": 1,
@@ -398,8 +335,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entries per page",
-                        "required": false,
+                        "description": "Number of items per page",
                         "schema": {
                             "type": "integer",
                             "minimum": 1,
@@ -420,17 +356,7 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -442,12 +368,11 @@
                 }
             },
             "post": {
-                "tags": [
-                    "Knowledge Management"
-                ],
                 "summary": "Create knowledge entry",
-                "description": "Add new knowledge entry manually",
-                "operationId": "createKnowledge",
+                "description": "Create a new knowledge entry",
+                "tags": [
+                    "Knowledge Base"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -464,7 +389,7 @@
                     }
                 },
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Knowledge entry created successfully",
                         "content": {
                             "application/json": {
@@ -475,7 +400,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid input",
+                        "description": "Bad request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -485,17 +410,7 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -509,12 +424,11 @@
         },
         "/api/v1/knowledge/{id}": {
             "put": {
-                "tags": [
-                    "Knowledge Management"
-                ],
                 "summary": "Update knowledge entry",
                 "description": "Update an existing knowledge entry",
-                "operationId": "updateKnowledge",
+                "tags": [
+                    "Knowledge Base"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -524,8 +438,8 @@
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "UUID of the knowledge entry to update",
                         "required": true,
+                        "description": "Knowledge entry ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -554,7 +468,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid input or knowledge entry ID",
+                        "description": "Bad request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -564,7 +478,17 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -574,17 +498,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not found - knowledge entry not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Knowledge entry not found",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -596,12 +510,11 @@
                 }
             },
             "delete": {
-                "tags": [
-                    "Knowledge Management"
-                ],
                 "summary": "Delete knowledge entry",
-                "description": "Delete a knowledge entry by ID",
-                "operationId": "deleteKnowledge",
+                "description": "Delete a knowledge entry",
+                "tags": [
+                    "Knowledge Base"
+                ],
                 "security": [
                     {
                         "BearerAuth": []
@@ -611,8 +524,8 @@
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "UUID of the knowledge entry to delete",
                         "required": true,
+                        "description": "Knowledge entry ID",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -620,11 +533,18 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "Knowledge entry deleted successfully"
+                    "200": {
+                        "description": "Knowledge entry deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CommonResponse"
+                                }
+                            }
+                        }
                     },
-                    "400": {
-                        "description": "Bad request - invalid knowledge entry ID",
+                    "401": {
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -633,8 +553,8 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized - invalid or missing token",
+                    "403": {
+                        "description": "Access denied",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -644,17 +564,7 @@
                         }
                     },
                     "404": {
-                        "description": "Not found - knowledge entry not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Knowledge entry not found",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -668,12 +578,11 @@
         },
         "/api/search": {
             "get": {
+                "summary": "Search knowledge base",
+                "description": "Search through knowledge entries",
                 "tags": [
-                    "Knowledge Management"
+                    "Search"
                 ],
-                "summary": "Search knowledge by topic",
-                "description": "Search stored knowledge entries by topic, keyword, or sentiment (Assignment Requirement)",
-                "operationId": "searchKnowledge",
                 "security": [
                     {
                         "BearerAuth": []
@@ -683,8 +592,7 @@
                     {
                         "name": "topic",
                         "in": "query",
-                        "description": "Topic to search for",
-                        "required": false,
+                        "description": "Filter by topic",
                         "schema": {
                             "type": "string"
                         }
@@ -692,8 +600,7 @@
                     {
                         "name": "keyword",
                         "in": "query",
-                        "description": "Keyword to search for",
-                        "required": false,
+                        "description": "Filter by keyword",
                         "schema": {
                             "type": "string"
                         }
@@ -701,22 +608,20 @@
                     {
                         "name": "sentiment",
                         "in": "query",
-                        "description": "Sentiment to filter by (positive, neutral, negative)",
-                        "required": false,
+                        "description": "Filter by sentiment",
                         "schema": {
                             "type": "string",
                             "enum": [
                                 "positive",
-                                "neutral",
-                                "negative"
+                                "negative",
+                                "neutral"
                             ]
                         }
                     },
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "Page number for pagination",
-                        "required": false,
+                        "description": "Page number",
                         "schema": {
                             "type": "integer",
                             "minimum": 1,
@@ -726,8 +631,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of results per page",
-                        "required": false,
+                        "description": "Number of items per page",
                         "schema": {
                             "type": "integer",
                             "minimum": 1,
@@ -738,7 +642,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Search results retrieved successfully",
+                        "description": "Search completed successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -747,83 +651,8 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "Bad request - invalid search parameters",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
                     "401": {
-                        "description": "Unauthorized - invalid or missing token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api": {
-            "get": {
-                "tags": [
-                    "Health"
-                ],
-                "summary": "OpenAPI specification",
-                "description": "Returns the OpenAPI 3.0.3 specification for this API",
-                "operationId": "getOpenAPISpec",
-                "responses": {
-                    "200": {
-                        "description": "OpenAPI specification",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "description": "OpenAPI 3.0.3 specification"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/metrics": {
-            "get": {
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Get LLM analysis metrics",
-                "description": "Returns system metrics for LLM text analysis including analysis counts, user counts, total texts processed, and average confidence scores",
-                "operationId": "getMetrics",
-                "responses": {
-                    "200": {
-                        "description": "Metrics retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/MetricsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Unauthorized",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -841,28 +670,126 @@
             "BearerAuth": {
                 "type": "http",
                 "scheme": "bearer",
-                "bearerFormat": "JWT",
-                "description": "JWT token for authentication"
+                "bearerFormat": "JWT"
             }
         },
         "schemas": {
+            "HealthResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "OK",
+                            "ERROR",
+                            "WARNING"
+                        ],
+                        "example": "OK"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    },
+                    "version": {
+                        "type": "string",
+                        "example": "1.0.0"
+                    }
+                },
+                "required": [
+                    "status",
+                    "timestamp"
+                ],
+                "example": {
+                    "status": "OK",
+                    "timestamp": "2024-01-15T10:30:00Z",
+                    "version": "1.0.0"
+                }
+            },
+            "MetricsResponse": {
+                "type": "object",
+                "properties": {
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Metrics"
+                        }
+                    }
+                },
+                "required": [
+                    "metrics"
+                ],
+                "example": {
+                    "metrics": [
+                        {
+                            "analyses": 150,
+                            "users": 25,
+                            "total_texts": 1200,
+                            "avg_confidence": 0.85
+                        }
+                    ]
+                }
+            },
+            "Metrics": {
+                "type": "object",
+                "properties": {
+                    "analyses": {
+                        "type": "integer",
+                        "description": "Total number of analyses",
+                        "example": 150
+                    },
+                    "users": {
+                        "type": "integer",
+                        "description": "Total number of users",
+                        "example": 25
+                    },
+                    "total_texts": {
+                        "type": "integer",
+                        "description": "Total number of texts processed",
+                        "example": 1200
+                    },
+                    "avg_confidence": {
+                        "type": "number",
+                        "format": "float",
+                        "description": "Average confidence score",
+                        "example": 0.85
+                    }
+                },
+                "required": [
+                    "analyses",
+                    "users",
+                    "total_texts",
+                    "avg_confidence"
+                ],
+                "example": {
+                    "analyses": 150,
+                    "users": 25,
+                    "total_texts": 1200,
+                    "avg_confidence": 0.85
+                }
+            },
             "SignupRequest": {
                 "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Username for the new account",
+                        "example": "john_doe"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "description": "Password for the new account",
+                        "example": "securepass123"
+                    }
+                },
                 "required": [
                     "username",
                     "password"
                 ],
-                "properties": {
-                    "username": {
-                        "type": "string",
-                        "description": "Username for the account",
-                        "minLength": 1
-                    },
-                    "password": {
-                        "type": "string",
-                        "description": "Password for the account",
-                        "minLength": 6
-                    }
+                "example": {
+                    "username": "john_doe",
+                    "password": "securepass123"
                 }
             },
             "SignupResponse": {
@@ -870,34 +797,53 @@
                 "properties": {
                     "token": {
                         "type": "string",
-                        "description": "JWT access token"
+                        "description": "JWT access token",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
                     },
                     "refresh_token": {
                         "type": "string",
-                        "description": "JWT refresh token"
+                        "description": "Refresh token",
+                        "example": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4gZXhhbXBsZQ=="
                     },
                     "expires_at": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Token expiration time"
+                        "description": "Token expiration time",
+                        "example": "2024-01-15T10:30:00Z"
                     }
+                },
+                "required": [
+                    "token",
+                    "refresh_token",
+                    "expires_at"
+                ],
+                "example": {
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                    "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4gZXhhbXBsZQ==",
+                    "expires_at": "2024-01-15T10:30:00Z"
                 }
             },
             "LoginRequest": {
                 "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Username",
+                        "example": "john_doe"
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "Password",
+                        "example": "securepass123"
+                    }
+                },
                 "required": [
                     "username",
                     "password"
                 ],
-                "properties": {
-                    "username": {
-                        "type": "string",
-                        "description": "Username for authentication"
-                    },
-                    "password": {
-                        "type": "string",
-                        "description": "Password for authentication"
-                    }
+                "example": {
+                    "username": "john_doe",
+                    "password": "securepass123"
                 }
             },
             "LoginResponse": {
@@ -905,31 +851,53 @@
                 "properties": {
                     "token": {
                         "type": "string",
-                        "description": "JWT access token"
+                        "description": "JWT access token",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
                     },
                     "refresh_token": {
                         "type": "string",
-                        "description": "JWT refresh token"
+                        "description": "Refresh token",
+                        "example": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4gZXhhbXBsZQ=="
                     },
                     "expires_at": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Token expiration time"
+                        "description": "Token expiration time",
+                        "example": "2024-01-15T10:30:00Z"
                     }
+                },
+                "required": [
+                    "token",
+                    "refresh_token",
+                    "expires_at"
+                ],
+                "example": {
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                    "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4gZXhhbXBsZQ==",
+                    "expires_at": "2024-01-15T10:30:00Z"
                 }
             },
             "LLMAnalysisRequest": {
                 "type": "object",
-                "required": [
-                    "text"
-                ],
                 "properties": {
                     "text": {
                         "type": "string",
-                        "description": "Unstructured text input for LLM analysis",
-                        "minLength": 1,
-                        "example": "Artificial intelligence is transforming the way we work and live..."
+                        "description": "Text to analyze",
+                        "example": "Artificial intelligence is transforming the way we work and live. From machine learning algorithms that power recommendation systems to natural language processing that enables chatbots, AI technologies are becoming increasingly sophisticated and integrated into our daily lives."
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "LLM model to use for analysis",
+                        "example": "gemini-2.0-flash"
                     }
+                },
+                "required": [
+                    "text",
+                    "model"
+                ],
+                "example": {
+                    "text": "Artificial intelligence is transforming the way we work and live. From machine learning algorithms that power recommendation systems to natural language processing that enables chatbots, AI technologies are becoming increasingly sophisticated and integrated into our daily lives.",
+                    "model": "gemini-2.0-flash"
                 }
             },
             "LLMAnalysisResponse": {
@@ -938,63 +906,119 @@
                     "id": {
                         "type": "string",
                         "format": "uuid",
-                        "description": "Unique analysis identifier"
+                        "description": "Unique analysis ID",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
                     },
                     "text": {
                         "type": "string",
-                        "description": "Original input text"
+                        "description": "Original text analyzed",
+                        "example": "Artificial intelligence is transforming the way we work and live. From machine learning algorithms that power recommendation systems to natural language processing that enables chatbots, AI technologies are becoming increasingly sophisticated and integrated into our daily lives."
                     },
                     "title": {
                         "type": "string",
-                        "description": "Extracted title (if available)"
+                        "description": "Generated title for the analysis",
+                        "example": "The Impact of Artificial Intelligence on Modern Society"
                     },
                     "summary": {
                         "type": "string",
-                        "description": "1-2 sentence summary generated by LLM"
+                        "description": "Summary of the text",
+                        "example": "This text discusses how artificial intelligence is revolutionizing various aspects of human life, including work environments and daily activities. It highlights key AI technologies like machine learning and natural language processing, emphasizing their growing sophistication and integration into everyday experiences."
                     },
                     "topics": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Array of 3 key topics extracted by LLM",
-                        "maxItems": 3,
-                        "minItems": 3
+                        "description": "Identified topics",
+                        "example": [
+                            "artificial intelligence",
+                            "machine learning",
+                            "technology",
+                            "automation",
+                            "natural language processing"
+                        ]
                     },
                     "sentiment": {
                         "type": "string",
-                        "description": "Sentiment analysis result",
                         "enum": [
                             "positive",
-                            "neutral",
-                            "negative"
-                        ]
+                            "negative",
+                            "neutral"
+                        ],
+                        "description": "Sentiment analysis result",
+                        "example": "positive"
                     },
                     "keywords": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Array of 3 most frequent nouns (custom implementation)",
-                        "maxItems": 3,
-                        "minItems": 3
+                        "description": "Extracted keywords",
+                        "example": [
+                            "AI",
+                            "machine learning",
+                            "algorithms",
+                            "recommendation systems",
+                            "chatbots",
+                            "NLP",
+                            "technologies"
+                        ]
                     },
                     "confidence": {
                         "type": "number",
                         "format": "float",
-                        "description": "Analysis confidence score",
                         "minimum": 0,
-                        "maximum": 1
+                        "maximum": 1,
+                        "description": "Confidence score of the analysis",
+                        "example": 0.87
                     },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Analysis creation timestamp"
+                        "description": "Analysis creation timestamp",
+                        "example": "2024-01-15T10:30:00Z"
                     },
                     "error": {
                         "type": "string",
-                        "description": "Error message if analysis failed"
+                        "description": "Error message if analysis failed",
+                        "example": null
                     }
+                },
+                "required": [
+                    "id",
+                    "text",
+                    "summary",
+                    "topics",
+                    "sentiment",
+                    "keywords",
+                    "confidence",
+                    "created_at"
+                ],
+                "example": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "text": "Artificial intelligence is transforming the way we work and live. From machine learning algorithms that power recommendation systems to natural language processing that enables chatbots, AI technologies are becoming increasingly sophisticated and integrated into our daily lives.",
+                    "title": "The Impact of Artificial Intelligence on Modern Society",
+                    "summary": "This text discusses how artificial intelligence is revolutionizing various aspects of human life, including work environments and daily activities. It highlights key AI technologies like machine learning and natural language processing, emphasizing their growing sophistication and integration into everyday experiences.",
+                    "topics": [
+                        "artificial intelligence",
+                        "machine learning",
+                        "technology",
+                        "automation",
+                        "natural language processing"
+                    ],
+                    "sentiment": "positive",
+                    "keywords": [
+                        "AI",
+                        "machine learning",
+                        "algorithms",
+                        "recommendation systems",
+                        "chatbots",
+                        "NLP",
+                        "technologies"
+                    ],
+                    "confidence": 0.87,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "error": null
                 }
             },
             "KnowledgeBaseEntry": {
@@ -1003,67 +1027,144 @@
                     "id": {
                         "type": "string",
                         "format": "uuid",
-                        "description": "Unique knowledge entry identifier"
+                        "description": "Unique entry ID"
                     },
                     "user_id": {
                         "type": "string",
                         "format": "uuid",
-                        "description": "User who created this entry"
+                        "description": "ID of the user who created this entry"
                     },
                     "text": {
                         "type": "string",
-                        "description": "Original input text"
+                        "description": "Original text content"
                     },
                     "title": {
                         "type": "string",
-                        "description": "Extracted title (if available)"
+                        "description": "Entry title"
                     },
                     "summary": {
                         "type": "string",
-                        "description": "1-2 sentence summary"
+                        "description": "Text summary"
                     },
                     "topics": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Array of 3 key topics"
+                        "description": "Associated topics"
                     },
                     "sentiment": {
                         "type": "string",
-                        "description": "Sentiment analysis result",
                         "enum": [
                             "positive",
-                            "neutral",
-                            "negative"
-                        ]
+                            "negative",
+                            "neutral"
+                        ],
+                        "description": "Sentiment classification"
                     },
                     "keywords": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Array of 3 most frequent nouns"
+                        "description": "Extracted keywords"
                     },
                     "confidence": {
                         "type": "number",
                         "format": "float",
-                        "description": "Analysis confidence score"
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Confidence score"
                     },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Entry creation timestamp"
+                        "description": "Creation timestamp"
                     },
                     "updated_at": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "Entry last update timestamp"
+                        "description": "Last update timestamp"
                     }
-                }
+                },
+                "required": [
+                    "id",
+                    "user_id",
+                    "text",
+                    "summary",
+                    "topics",
+                    "sentiment",
+                    "keywords",
+                    "confidence",
+                    "created_at",
+                    "updated_at"
+                ]
             },
             "CreateKnowledgeRequest": {
                 "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Text content",
+                        "example": "Machine learning is a subset of artificial intelligence that focuses on algorithms that can learn and make decisions from data without being explicitly programmed for every task."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Entry title",
+                        "example": "Introduction to Machine Learning"
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Text summary",
+                        "example": "An overview of machine learning as a subset of AI that enables algorithms to learn from data and make autonomous decisions."
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Associated topics",
+                        "example": [
+                            "machine learning",
+                            "artificial intelligence",
+                            "algorithms",
+                            "data science"
+                        ]
+                    },
+                    "sentiment": {
+                        "type": "string",
+                        "enum": [
+                            "positive",
+                            "negative",
+                            "neutral"
+                        ],
+                        "description": "Sentiment classification",
+                        "example": "neutral"
+                    },
+                    "keywords": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Keywords",
+                        "example": [
+                            "ML",
+                            "AI",
+                            "algorithms",
+                            "data",
+                            "programming",
+                            "automation"
+                        ]
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Confidence score",
+                        "example": 0.92
+                    }
+                },
                 "required": [
                     "text",
                     "summary",
@@ -1071,55 +1172,26 @@
                     "sentiment",
                     "keywords"
                 ],
-                "properties": {
-                    "text": {
-                        "type": "string",
-                        "description": "Original input text",
-                        "minLength": 1
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Title (optional)"
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "1-2 sentence summary",
-                        "minLength": 1
-                    },
-                    "topics": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "Array of 3 key topics",
-                        "minItems": 1,
-                        "maxItems": 3
-                    },
-                    "sentiment": {
-                        "type": "string",
-                        "description": "Sentiment analysis result",
-                        "enum": [
-                            "positive",
-                            "neutral",
-                            "negative"
-                        ]
-                    },
-                    "keywords": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "Array of 3 most frequent nouns",
-                        "minItems": 1,
-                        "maxItems": 3
-                    },
-                    "confidence": {
-                        "type": "number",
-                        "format": "float",
-                        "description": "Analysis confidence score",
-                        "minimum": 0,
-                        "maximum": 1
-                    }
+                "example": {
+                    "text": "Machine learning is a subset of artificial intelligence that focuses on algorithms that can learn and make decisions from data without being explicitly programmed for every task.",
+                    "title": "Introduction to Machine Learning",
+                    "summary": "An overview of machine learning as a subset of AI that enables algorithms to learn from data and make autonomous decisions.",
+                    "topics": [
+                        "machine learning",
+                        "artificial intelligence",
+                        "algorithms",
+                        "data science"
+                    ],
+                    "sentiment": "neutral",
+                    "keywords": [
+                        "ML",
+                        "AI",
+                        "algorithms",
+                        "data",
+                        "programming",
+                        "automation"
+                    ],
+                    "confidence": 0.92
                 }
             },
             "UpdateKnowledgeRequest": {
@@ -1127,42 +1199,78 @@
                 "properties": {
                     "title": {
                         "type": "string",
-                        "description": "Updated title"
+                        "description": "Entry title",
+                        "example": "Advanced Machine Learning Concepts"
                     },
                     "summary": {
                         "type": "string",
-                        "description": "Updated summary"
+                        "description": "Text summary",
+                        "example": "A comprehensive overview of advanced machine learning techniques including deep learning, neural networks, and reinforcement learning."
                     },
                     "topics": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Updated topics array"
+                        "description": "Associated topics",
+                        "example": [
+                            "deep learning",
+                            "neural networks",
+                            "reinforcement learning",
+                            "advanced AI"
+                        ]
                     },
                     "sentiment": {
                         "type": "string",
-                        "description": "Updated sentiment",
                         "enum": [
                             "positive",
-                            "neutral",
-                            "negative"
-                        ]
+                            "negative",
+                            "neutral"
+                        ],
+                        "description": "Sentiment classification",
+                        "example": "positive"
                     },
                     "keywords": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         },
-                        "description": "Updated keywords array"
+                        "description": "Keywords",
+                        "example": [
+                            "deep learning",
+                            "neural networks",
+                            "reinforcement",
+                            "advanced",
+                            "AI"
+                        ]
                     },
                     "confidence": {
                         "type": "number",
                         "format": "float",
-                        "description": "Updated confidence score",
                         "minimum": 0,
-                        "maximum": 1
+                        "maximum": 1,
+                        "description": "Confidence score",
+                        "example": 0.95
                     }
+                },
+                "example": {
+                    "title": "Advanced Machine Learning Concepts",
+                    "summary": "A comprehensive overview of advanced machine learning techniques including deep learning, neural networks, and reinforcement learning.",
+                    "topics": [
+                        "deep learning",
+                        "neural networks",
+                        "reinforcement learning",
+                        "advanced AI"
+                    ],
+                    "sentiment": "positive",
+                    "keywords": [
+                        "deep learning",
+                        "neural networks",
+                        "reinforcement",
+                        "advanced",
+                        "AI"
+                    ],
+                    "confidence": 0.95
                 }
             },
             "GetKnowledgeResponse": {
@@ -1173,7 +1281,7 @@
                         "items": {
                             "$ref": "#/components/schemas/KnowledgeBaseEntry"
                         },
-                        "description": "Array of knowledge entries"
+                        "description": "List of knowledge entries"
                     },
                     "currentPage": {
                         "type": "integer",
@@ -1185,7 +1293,48 @@
                     },
                     "totalCount": {
                         "type": "integer",
-                        "description": "Total number of knowledge entries"
+                        "description": "Total number of entries"
+                    }
+                },
+                "required": [
+                    "knowledge",
+                    "currentPage",
+                    "totalPages",
+                    "totalCount"
+                ]
+            },
+            "SearchRequest": {
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Filter by topic"
+                    },
+                    "keyword": {
+                        "type": "string",
+                        "description": "Filter by keyword"
+                    },
+                    "sentiment": {
+                        "type": "string",
+                        "enum": [
+                            "positive",
+                            "negative",
+                            "neutral"
+                        ],
+                        "description": "Filter by sentiment"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "Page number"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "default": 10,
+                        "description": "Number of items per page"
                     }
                 }
             },
@@ -1197,7 +1346,7 @@
                         "items": {
                             "$ref": "#/components/schemas/KnowledgeBaseEntry"
                         },
-                        "description": "Array of search results"
+                        "description": "Search results"
                     },
                     "currentPage": {
                         "type": "integer",
@@ -1209,32 +1358,42 @@
                     },
                     "totalCount": {
                         "type": "integer",
-                        "description": "Total number of search results"
+                        "description": "Total number of results"
                     }
-                }
+                },
+                "required": [
+                    "results",
+                    "currentPage",
+                    "totalPages",
+                    "totalCount"
+                ]
             },
-            "HealthResponse": {
+            "CommonResponse": {
                 "type": "object",
                 "properties": {
-                    "status": {
-                        "type": "string",
-                        "description": "Health status",
-                        "enum": [
-                            "OK",
-                            "ERROR",
-                            "WARNING"
-                        ]
+                    "success": {
+                        "type": "boolean",
+                        "description": "Operation success status",
+                        "example": true
                     },
-                    "timestamp": {
+                    "message": {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "Health check timestamp"
+                        "description": "Response message",
+                        "example": "Operation completed successfully"
                     },
-                    "version": {
-                        "type": "string",
-                        "description": "Service version",
-                        "nullable": true
+                    "data": {
+                        "type": "object",
+                        "description": "Response data",
+                        "example": {}
                     }
+                },
+                "required": [
+                    "success"
+                ],
+                "example": {
+                    "success": true,
+                    "message": "Operation completed successfully",
+                    "data": {}
                 }
             },
             "ErrorResponse": {
@@ -1242,50 +1401,50 @@
                 "properties": {
                     "code": {
                         "type": "integer",
-                        "description": "HTTP status code"
+                        "description": "HTTP status code",
+                        "example": 400
                     },
                     "message": {
                         "type": "string",
-                        "description": "Error message"
+                        "description": "Error message",
+                        "example": "Invalid request parameters"
                     }
-                }
-            },
-            "MetricsResponse": {
-                "type": "object",
-                "properties": {
-                    "metrics": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Metrics"
-                        },
-                        "description": "Array of system metrics"
-                    }
-                }
-            },
-            "Metrics": {
-                "type": "object",
-                "properties": {
-                    "analyses": {
-                        "type": "integer",
-                        "description": "Total number of LLM analyses performed"
-                    },
-                    "users": {
-                        "type": "integer",
-                        "description": "Total number of registered users"
-                    },
-                    "total_texts": {
-                        "type": "integer",
-                        "description": "Total number of texts processed"
-                    },
-                    "avg_confidence": {
-                        "type": "number",
-                        "format": "float",
-                        "description": "Average confidence score across all analyses",
-                        "minimum": 0,
-                        "maximum": 1
-                    }
+                },
+                "required": [
+                    "code",
+                    "message"
+                ],
+                "example": {
+                    "code": 400,
+                    "message": "Invalid request parameters"
                 }
             }
         }
-    }
+    },
+    "tags": [
+        {
+            "name": "Health",
+            "description": "Health check endpoints"
+        },
+        {
+            "name": "Metrics",
+            "description": "System metrics endpoints"
+        },
+        {
+            "name": "Authentication",
+            "description": "User authentication endpoints"
+        },
+        {
+            "name": "LLM Analysis",
+            "description": "LLM-powered text analysis endpoints"
+        },
+        {
+            "name": "Knowledge Base",
+            "description": "Knowledge base management endpoints"
+        },
+        {
+            "name": "Search",
+            "description": "Knowledge base search endpoints"
+        }
+    ]
 }

@@ -15,10 +15,43 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/genai"
+
 	"go.ssnk.in/joustlm/config"
 	"go.ssnk.in/joustlm/logger"
 	"go.ssnk.in/joustlm/schema/api"
 )
+
+func createMockLLM() *LLM {
+	return &LLM{
+		summarizer: &mockLLMClient{},
+		tokenizer:  nil,
+	}
+}
+
+// mockLLMClient implements LLMClient interface for testing
+type mockLLMClient struct{}
+
+func (m *mockLLMClient) Models() LLMModels {
+	return &mockLLMModels{}
+}
+
+type mockLLMModels struct{}
+
+func (m *mockLLMModels) GenerateContent(ctx context.Context, model string, contents []*genai.Content, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {
+	// Return a mock response that matches the expected structure
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{
+			{
+				Content: &genai.Content{
+					Parts: []*genai.Part{
+						{Text: `{"title":"Mock Analysis","summary":"This is a mock analysis for testing purposes.","topics":["testing","mock","analysis"],"sentiment":"neutral","keywords":["test","mock","data"],"confidence":0.85}`},
+					},
+				},
+			},
+		},
+	}, nil
+}
 
 type HandlerTestSuite struct {
 	suite.Suite
@@ -30,8 +63,8 @@ type HandlerTestSuite struct {
 func (suite *HandlerTestSuite) SetupTest() {
 	suite.log = logger.New(logger.SetLevel(logger.Debug))
 	conf := &config.Security{
-		JWTSecret:    "test-secret",
-		TokenExpiry:  24,
+		JWTSecret:   "test-secret",
+		TokenExpiry: 24,
 	}
 
 	dbFile := fmt.Sprintf("file:test_%d.db?mode=memory&cache=shared", time.Now().UnixNano())
@@ -48,7 +81,8 @@ func (suite *HandlerTestSuite) SetupTest() {
 	err := dao.RunMigrations()
 	require.NoError(suite.T(), err, "Migrations should run successfully")
 
-	suite.service = NewService(&suite.log, conf, dao)
+	mockLLM := createMockLLM()
+	suite.service = NewService(&suite.log, conf, mockLLM, dao)
 	suite.handler = NewHandler(&suite.log, suite.service)
 }
 
@@ -66,7 +100,6 @@ func createRequestWithUserContext(method, url string, body *bytes.Buffer, userID
 		req = httptest.NewRequest(method, url, nil)
 	}
 
-	// Add user context to request
 	ctx := context.WithValue(req.Context(), contextKey("userID"), userID)
 	req = req.WithContext(ctx)
 
@@ -81,7 +114,6 @@ func createAuthenticatedRequest(method, url string, body *bytes.Buffer, authToke
 		req = httptest.NewRequest(method, url, nil)
 	}
 
-	// Add authorization header
 	if authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+authToken)
 	}
@@ -89,7 +121,6 @@ func createAuthenticatedRequest(method, url string, body *bytes.Buffer, authToke
 	return req
 }
 
-// Helper function to create request with user context from auth token
 func createRequestWithAuthToken(method, url string, body *bytes.Buffer, authToken string, service *Service) *http.Request {
 	var req *http.Request
 	if body != nil {
@@ -98,11 +129,9 @@ func createRequestWithAuthToken(method, url string, body *bytes.Buffer, authToke
 		req = httptest.NewRequest(method, url, nil)
 	}
 
-	// Add authorization header
 	if authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+authToken)
 
-		// Extract user ID from token and add to context
 		userID, err := service.validateJWT(authToken)
 		if err == nil {
 			ctx := context.WithValue(req.Context(), contextKey("userID"), userID)
@@ -616,7 +645,7 @@ func (suite *HandlerTestSuite) TestGetKnowledgeEntries() {
 					assert.Contains(suite.T(), errorResp.Message, tt.errorMsg, "Expected error message to contain: %s", tt.errorMsg)
 				}
 			} else {
-				var getResp api.GetKnowledgeEntriesResponse
+				var getResp api.GetKnowledgeResponse
 				err := json.Unmarshal(w.Body.Bytes(), &getResp)
 				require.NoError(suite.T(), err, "Failed to unmarshal get response")
 				assert.GreaterOrEqual(suite.T(), getResp.TotalCount, 0, "Total count should be non-negative")
@@ -679,7 +708,7 @@ func (suite *HandlerTestSuite) TestDeleteKnowledgeEntry() {
 	}{
 		{
 			name:           "should delete knowledge entry successfully",
-			analysisID:    analysisID,
+			analysisID:     analysisID,
 			authToken:      authToken,
 			expectedStatus: http.StatusNoContent,
 			expectError:    false,
@@ -688,9 +717,9 @@ func (suite *HandlerTestSuite) TestDeleteKnowledgeEntry() {
 			name:           "should fail with non-existent analysis",
 			analysisID:     uuid.New().String(),
 			authToken:      authToken,
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus: http.StatusNotFound,
 			expectError:    true,
-			errorMsg:       "Internal server error",
+			errorMsg:       "Resource not found",
 		},
 		{
 			name:           "should fail without authentication",
@@ -793,7 +822,7 @@ func (suite *HandlerTestSuite) TestSearchKnowledge() {
 	}{
 		{
 			name:           "should search by topic",
-			queryParams:    "?topic=artificial intelligence",
+			queryParams:    "?topic=artificial%20intelligence",
 			authToken:      authToken,
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -861,7 +890,7 @@ func (suite *HandlerTestSuite) TestSearchKnowledge() {
 					assert.Contains(suite.T(), errorResp.Message, tt.errorMsg, "Expected error message to contain: %s", tt.errorMsg)
 				}
 			} else {
-				var searchResp api.SearchKnowledgeResponse
+				var searchResp api.SearchResponse
 				err := json.Unmarshal(w.Body.Bytes(), &searchResp)
 				require.NoError(suite.T(), err, "Failed to unmarshal search response")
 				assert.GreaterOrEqual(suite.T(), searchResp.TotalCount, 0, "Total count should be non-negative")
@@ -872,8 +901,6 @@ func (suite *HandlerTestSuite) TestSearchKnowledge() {
 }
 
 func (suite *HandlerTestSuite) TestErrorScenarios() {
-	var authToken string
-
 	suite.Run("setup_auth", func() {
 		signupReq := api.SignupRequest{
 			Username: "errorcasetestuser",
@@ -892,7 +919,6 @@ func (suite *HandlerTestSuite) TestErrorScenarios() {
 		var signupResp api.SignupResponse
 		err = json.Unmarshal(w.Body.Bytes(), &signupResp)
 		require.NoError(suite.T(), err, "Failed to unmarshal signup response")
-		authToken = signupResp.Token
 	})
 
 	tests := []struct {
@@ -919,15 +945,6 @@ func (suite *HandlerTestSuite) TestErrorScenarios() {
 			path:           "/api/v1/login",
 			body:           `{"username": "test", "password": }`,
 			headers:        map[string]string{"Content-Type": "application/json"},
-			expectedStatus: http.StatusBadRequest,
-			errorMsg:       "Invalid request body",
-		},
-		{
-			name:           "should handle malformed JSON in create URL",
-			method:         "POST",
-			path:           "/api/v1/urls",
-			body:           `{"original_url": }`,
-			headers:        map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + authToken},
 			expectedStatus: http.StatusBadRequest,
 			errorMsg:       "Invalid request body",
 		},
@@ -971,20 +988,9 @@ func (suite *HandlerTestSuite) TestErrorScenarios() {
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
-			var req *http.Request
-			if tt.name == "should handle malformed JSON in create URL" {
-				// For create URL, we need to use createRequestWithAuthToken to set up authentication context
-				req = createRequestWithAuthToken(tt.method, tt.path, bytes.NewBufferString(tt.body), authToken, suite.service)
-				for key, value := range tt.headers {
-					if key != "Authorization" { // Skip Authorization header as it's handled by createRequestWithAuthToken
-						req.Header.Set(key, value)
-					}
-				}
-			} else {
-				req = httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
-				for key, value := range tt.headers {
-					req.Header.Set(key, value)
-				}
+			req := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
 			}
 			w := httptest.NewRecorder()
 
@@ -993,8 +999,6 @@ func (suite *HandlerTestSuite) TestErrorScenarios() {
 				suite.handler.Signup(w, req)
 			case strings.HasPrefix(tt.path, "/api/v1/login"):
 				suite.handler.Login(w, req)
-			case strings.HasPrefix(tt.path, "/api/v1/urls") && tt.method == "POST":
-				suite.handler.CreateURL(w, req)
 			default:
 				suite.handler.Signup(w, req)
 			}
@@ -1012,8 +1016,6 @@ func (suite *HandlerTestSuite) TestErrorScenarios() {
 }
 
 func (suite *HandlerTestSuite) TestEdgeCases() {
-	var authToken string
-
 	suite.Run("setup_auth", func() {
 		signupReq := api.SignupRequest{
 			Username: "edgecasetestuser",
@@ -1032,7 +1034,6 @@ func (suite *HandlerTestSuite) TestEdgeCases() {
 		var signupResp api.SignupResponse
 		err = json.Unmarshal(w.Body.Bytes(), &signupResp)
 		require.NoError(suite.T(), err, "Failed to unmarshal signup response")
-		authToken = signupResp.Token
 	})
 
 	tests := []struct {
@@ -1051,34 +1052,6 @@ func (suite *HandlerTestSuite) TestEdgeCases() {
 			expectedStatus: http.StatusOK,
 			description:    "Health check should work under load",
 		},
-		{
-			name: "should handle very long URLs",
-			scenario: func() (*httptest.ResponseRecorder, *http.Request) {
-				longURL := "https://example.com/" + strings.Repeat("very-long-path/", 1000)
-				createReq := api.CreateURLRequest{OriginalURL: longURL}
-				jsonData, _ := json.Marshal(createReq)
-				req := createRequestWithAuthToken("POST", "/api/v1/urls", bytes.NewBuffer(jsonData), authToken, suite.service)
-				req.Header.Set("Content-Type", "application/json")
-				w := httptest.NewRecorder()
-				return w, req
-			},
-			expectedStatus: http.StatusCreated,
-			description:    "Should handle very long URLs",
-		},
-		{
-			name: "should handle special characters in URLs",
-			scenario: func() (*httptest.ResponseRecorder, *http.Request) {
-				specialURL := "https://example.com/path?param=value&other=test#section"
-				createReq := api.CreateURLRequest{OriginalURL: specialURL}
-				jsonData, _ := json.Marshal(createReq)
-				req := createRequestWithAuthToken("POST", "/api/v1/urls", bytes.NewBuffer(jsonData), authToken, suite.service)
-				req.Header.Set("Content-Type", "application/json")
-				w := httptest.NewRecorder()
-				return w, req
-			},
-			expectedStatus: http.StatusCreated,
-			description:    "Should handle special characters in URLs",
-		},
 	}
 
 	for _, tt := range tests {
@@ -1088,8 +1061,6 @@ func (suite *HandlerTestSuite) TestEdgeCases() {
 			switch {
 			case strings.HasPrefix(req.URL.Path, "/health"):
 				suite.handler.HandleHealth(w, req)
-			case strings.HasPrefix(req.URL.Path, "/api/v1/urls") && req.Method == "POST":
-				suite.handler.CreateURL(w, req)
 			}
 
 			assert.Equal(suite.T(), tt.expectedStatus, w.Code, "Expected status %d, got %d for scenario: %s", tt.expectedStatus, w.Code, tt.description)

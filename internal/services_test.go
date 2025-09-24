@@ -1,8 +1,8 @@
 package internal
 
 import (
+	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -59,7 +59,8 @@ func (suite *ServiceTestSuite) TestNewService() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			assert.NotNil(suite.T(), service, "NewService should not return nil")
 			assert.Equal(suite.T(), &suite.log, service.logger, "Logger should be set correctly")
@@ -83,12 +84,12 @@ func (suite *ServiceTestSuite) TestServiceHashPassword() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{
-				PasswordSalt:    "test-salt",
-				JWTSecret:       "test-secret",
-				TokenExpiry:     24,
-				ShortCodeLength: 6,
+				PasswordSalt: "test-salt",
+				JWTSecret:    "test-secret",
+				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			password := "testpassword"
 			hash1 := service.hashPassword(password)
@@ -97,38 +98,6 @@ func (suite *ServiceTestSuite) TestServiceHashPassword() {
 			assert.Equal(suite.T(), hash1, hash2, "Same password should produce same hash")
 			assert.NotEqual(suite.T(), hash1, password, "Hash should not be the same as password")
 			assert.NotEmpty(suite.T(), hash1, "Hash should not be empty")
-		})
-	}
-}
-
-func (suite *ServiceTestSuite) TestServiceGenerateShortCode() {
-	tests := []struct {
-		name     string
-		expected bool
-	}{
-		{
-			name:     "should generate short codes correctly",
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			conf := &config.Security{
-				ShortCodeLength: 6,
-			}
-			service := NewService(&suite.log, conf, suite.dao)
-
-			code := service.generateShortCode()
-
-			assert.Equal(suite.T(), service.config.ShortCodeLength, len(code), "Expected code length %d, got %d", service.config.ShortCodeLength, len(code))
-
-			codes := make(map[string]bool)
-			for i := 0; i < 100; i++ {
-				code := service.generateShortCode()
-				assert.False(suite.T(), codes[code], "Generated duplicate short code: %s", code)
-				codes[code] = true
-			}
 		})
 	}
 }
@@ -194,18 +163,18 @@ func (suite *ServiceTestSuite) TestServiceSignupUser() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{
-				PasswordSalt:    "test-salt",
-				JWTSecret:       "test-secret",
-				TokenExpiry:     24,
-				ShortCodeLength: 6,
+				PasswordSalt: "test-salt",
+				JWTSecret:    "test-secret",
+				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.req.Username != "" && tt.req.Username != "testuser1" {
 				tt.req.Username = fmt.Sprintf("%s_%d", tt.req.Username, time.Now().UnixNano())
 			}
 
-			response, err := service.SignupUser(&tt.req)
+			response, err := service.SignupUser(context.Background(), &tt.req)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
@@ -284,12 +253,12 @@ func (suite *ServiceTestSuite) TestServiceLoginUser() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{
-				PasswordSalt:    "test-salt",
-				JWTSecret:       "test-secret",
-				TokenExpiry:     24,
-				ShortCodeLength: 6,
+				PasswordSalt: "test-salt",
+				JWTSecret:    "test-secret",
+				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.setupUser {
 				uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
@@ -297,12 +266,12 @@ func (suite *ServiceTestSuite) TestServiceLoginUser() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				_, err := service.SignupUser(&signupReq)
+				_, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 				tt.req.Username = uniqueUsername
 			}
 
-			response, err := service.LoginUser(&tt.req)
+			response, err := service.LoginUser(context.Background(), &tt.req)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
@@ -351,12 +320,12 @@ func (suite *ServiceTestSuite) TestServiceLogoutUser() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{
-				PasswordSalt:    "test-salt",
-				JWTSecret:       "test-secret",
-				TokenExpiry:     24,
-				ShortCodeLength: 6,
+				PasswordSalt: "test-salt",
+				JWTSecret:    "test-secret",
+				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.setupToken {
 				uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
@@ -364,12 +333,12 @@ func (suite *ServiceTestSuite) TestServiceLogoutUser() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				signupResp, err := service.SignupUser(&signupReq)
+				signupResp, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 				tt.token = signupResp.Token
 			}
 
-			err := service.LogoutUser(tt.token)
+			err := service.LogoutUser(context.Background(), tt.token)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
@@ -421,12 +390,12 @@ func (suite *ServiceTestSuite) TestServiceValidateJWT() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			conf := &config.Security{
-				PasswordSalt:    "test-salt",
-				JWTSecret:       "test-secret",
-				TokenExpiry:     24,
-				ShortCodeLength: 6,
+				PasswordSalt: "test-salt",
+				JWTSecret:    "test-secret",
+				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.setupToken {
 				uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
@@ -434,7 +403,7 @@ func (suite *ServiceTestSuite) TestServiceValidateJWT() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				signupResp, err := service.SignupUser(&signupReq)
+				signupResp, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 				tt.token = signupResp.Token
 			}
@@ -521,7 +490,8 @@ func (suite *ServiceTestSuite) TestServiceExtractKnowledge() {
 				JWTSecret:    "test-secret",
 				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			var userID uuid.UUID
 			if tt.setupUser {
@@ -530,7 +500,7 @@ func (suite *ServiceTestSuite) TestServiceExtractKnowledge() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				signupResp, err := service.SignupUser(&signupReq)
+				signupResp, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 
 				userIDFromToken, err := service.validateJWT(signupResp.Token)
@@ -540,7 +510,7 @@ func (suite *ServiceTestSuite) TestServiceExtractKnowledge() {
 				userID = uuid.New()
 			}
 
-			response, err := service.ExtractKnowledge(&tt.req, userID)
+			response, err := service.ExtractKnowledge(context.Background(), &tt.req, userID)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
@@ -624,7 +594,8 @@ func (suite *ServiceTestSuite) TestServiceGetKnowledgeEntries() {
 				JWTSecret:    "test-secret",
 				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.setupData {
 				uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
@@ -632,7 +603,7 @@ func (suite *ServiceTestSuite) TestServiceGetKnowledgeEntries() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				signupResp, err := service.SignupUser(&signupReq)
+				signupResp, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 
 				userIDFromToken, err := service.validateJWT(signupResp.Token)
@@ -643,12 +614,12 @@ func (suite *ServiceTestSuite) TestServiceGetKnowledgeEntries() {
 					extractReq := api.LLMAnalysisRequest{
 						Text: fmt.Sprintf("This is analysis number %d for testing pagination and retrieval functionality.", i),
 					}
-					_, err := service.ExtractKnowledge(&extractReq, userIDFromToken)
+					_, err := service.ExtractKnowledge(context.Background(), &extractReq, userIDFromToken)
 					require.NoError(suite.T(), err, "Should create analysis")
 				}
 			}
 
-			response, err := service.GetKnowledgeEntries(tt.userID, tt.page, tt.limit)
+			response, err := service.GetKnowledgeEntries(context.Background(), tt.userID, tt.page, tt.limit)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
@@ -686,7 +657,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 			userID:      uuid.New(),
 			analysisID:  uuid.New(),
 			expectError: true,
-			errorMsg:    "analysis not found or access denied",
+			errorMsg:    "analysis not found",
 		},
 		{
 			name:        "should fail with wrong user",
@@ -694,7 +665,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 			userID:      uuid.New(),
 			analysisID:  uuid.New(),
 			expectError: true,
-			errorMsg:    "analysis not found or access denied",
+			errorMsg:    "access denied",
 		},
 	}
 
@@ -705,7 +676,8 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 				JWTSecret:    "test-secret",
 				TokenExpiry:  24,
 			}
-			service := NewService(&suite.log, conf, suite.dao)
+			mockLLM := createMockLLM()
+			service := NewService(&suite.log, conf, mockLLM, suite.dao)
 
 			if tt.setupData {
 				// Setup user and create analysis
@@ -714,7 +686,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 					Username: uniqueUsername,
 					Password: "testpass123",
 				}
-				signupResp, err := service.SignupUser(&signupReq)
+				signupResp, err := service.SignupUser(context.Background(), &signupReq)
 				require.NoError(suite.T(), err, "Setup user should succeed")
 
 				userIDFromToken, err := service.validateJWT(signupResp.Token)
@@ -723,7 +695,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 				extractReq := api.LLMAnalysisRequest{
 					Text: "This is a test analysis for deletion testing.",
 				}
-				extractResp, err := service.ExtractKnowledge(&extractReq, userIDFromToken)
+				extractResp, err := service.ExtractKnowledge(context.Background(), &extractReq, userIDFromToken)
 				require.NoError(suite.T(), err, "Should create analysis")
 
 				if tt.name == "should fail with wrong user" {
@@ -733,7 +705,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 						Username: wrongUsername,
 						Password: "testpass123",
 					}
-					wrongSignupResp, err := service.SignupUser(&wrongSignupReq)
+					wrongSignupResp, err := service.SignupUser(context.Background(), &wrongSignupReq)
 					require.NoError(suite.T(), err, "Setup wrong user should succeed")
 
 					wrongUserIDFromToken, err := service.validateJWT(wrongSignupResp.Token)
@@ -745,7 +717,7 @@ func (suite *ServiceTestSuite) TestServiceDeleteKnowledgeEntry() {
 				tt.analysisID = extractResp.ID
 			}
 
-			err := service.DeleteKnowledgeEntry(tt.userID, tt.analysisID)
+			err := service.DeleteKnowledgeEntry(context.Background(), tt.analysisID, tt.userID)
 
 			if tt.expectError {
 				assert.Error(suite.T(), err, "Expected error for test case: %s", tt.name)
