@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Update CHANGELOG
+if command -v git-cliff &> /dev/null; then
+  if ! git cliff -c .github/cliff.toml -vux -o CHANGELOG.md; then
+    printf "\nFailed to generate changelog using git-cliff.\n"
+    exit 1
+  fi
+else
+  printf "\nChangelog generators unavailable\n"
+#  exit 1
+fi
