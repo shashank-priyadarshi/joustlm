@@ -1,0 +1,59 @@
+{
+    "app": {
+        "name": "JoustLM",
+        "version": "1.0.0"
+    },
+    "api": {
+        "baseUrl": "http://localhost:8080/api",
+        "version": "v1",
+        "endpoints": {
+            "auth": {
+                "login": "/auth/login",
+                "signup": "/auth/signup",
+                "logout": "/auth/logout",
+                "verify": "/auth/verify"
+            },
+            "extract": {
+                "analyze": "/extract",
+                "getResult": "/extract/:id"
+            },
+            "knowledge": {
+                "list": "/knowledge",
+                "create": "/knowledge",
+                "update": "/knowledge/:id",
+                "delete": "/knowledge/:id"
+            },
+            "search": {
+                "knowledge": "/search"
+            },
+            "health": {
+                "check": "/health"
+            }
+        }
+    },
+    "demo": {
+        "enabled": false,
+        "credentials": {
+            "username": "demo",
+            "password": "demo123"
+        },
+        "data": {
+            "user": "/assets/data/user.json",
+            "knowledge": "/assets/data/knowledge.json"
+        }
+    },
+    "ui": {
+        "pagination": {
+            "itemsPerPage": 10
+        },
+        "messages": {
+            "timeout": {
+                "error": 5000,
+                "success": 3000
+            }
+        },
+        "loading": {
+            "delay": 500
+        }
+    }
+}

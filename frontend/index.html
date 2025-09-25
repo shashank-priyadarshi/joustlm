@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JoustLM - AI Knowledge Extraction</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page">
+        <div class="login-container">
+            <h1>JoustLM</h1>
+            <p class="subtitle">AI-Powered Knowledge Extraction</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <div class="auth-switch">
+                <p>Don't have an account? <a href="#" id="showSignup">Sign up</a></p>
+            </div>
+            <div id="loginError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Signup Page -->
+    <div id="signupPage" class="page hidden">
+        <div class="login-container">
+            <h1>Create Account</h1>
+            <p class="subtitle">Join JoustLM</p>
+            <form id="signupForm">
+                <div class="form-group">
+                    <label for="signupUsername">Username:</label>
+                    <input type="text" id="signupUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password:</label>
+                    <input type="password" id="signupPassword" name="password" required minlength="6">
+                </div>
+                <button type="submit">Sign Up</button>
+            </form>
+            <div class="auth-switch">
+                <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
+            </div>
+            <div id="signupError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboardPage" class="page hidden">
+        <header class="header">
+            <h1>JoustLM Dashboard</h1>
+            <div class="user-info">
+                <span id="welcomeUser"></span>
+                <button id="logoutBtn" class="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Text Analysis Form -->
+            <div class="analysis-section">
+                <h2>Extract Knowledge from Text</h2>
+                <p class="analysis-note">All analyses are automatically saved to your knowledge base</p>
+                <form id="analysisForm">
+                    <div class="form-group">
+                        <label for="textInput">Text to Analyze:</label>
+                        <textarea id="textInput" name="text" placeholder="Enter text to analyze..." rows="8" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="modelSelect">LLM Model:</label>
+                        <select id="modelSelect" name="model" required>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        </select>
+                    </div>
+                    <button type="submit">Analyze Text</button>
+                </form>
+                <div id="analysisError" class="error-message"></div>
+                <div id="analysisSuccess" class="success-message"></div>
+            </div>
+
+            <!-- Analysis Results -->
+            <div id="analysisResults" class="results-section hidden">
+                <h2>Analysis Results</h2>
+                <div id="resultsContent" class="results-content">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+
+            <!-- Knowledge Base -->
+            <div class="knowledge-section">
+                <h2>Knowledge Base</h2>
+                <div class="knowledge-controls">
+                    <button id="refreshKnowledge" class="btn-secondary">Refresh</button>
+                    <button id="searchKnowledge" class="btn-secondary">Search</button>
+                </div>
+
+                <!-- Search Form -->
+                <div id="searchForm" class="search-form hidden">
+                    <form id="knowledgeSearchForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="searchTopic">Topic:</label>
+                                <input type="text" id="searchTopic" name="topic" placeholder="Filter by topic">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchKeyword">Keyword:</label>
+                                <input type="text" id="searchKeyword" name="keyword" placeholder="Filter by keyword">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchSentiment">Sentiment:</label>
+                                <select id="searchSentiment" name="sentiment">
+                                    <option value="">All</option>
+                                    <option value="positive">Positive</option>
+                                    <option value="negative">Negative</option>
+                                    <option value="neutral">Neutral</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit">Search</button>
+                        <button type="button" id="clearSearch">Clear</button>
+                    </form>
+                </div>
+
+                <div id="knowledgeList" class="knowledge-list">
+                    <!-- Knowledge entries will be loaded here -->
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination" class="pagination">
+                    <button id="prevPage" class="pagination-btn" disabled>Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="pagination-btn" disabled>Next</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

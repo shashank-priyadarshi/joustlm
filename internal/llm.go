@@ -7,7 +7,6 @@ import (
 	"github.com/sugarme/tokenizer"
 	"go.ssnk.in/joustlm/config"
 
-	"github.com/sugarme/tokenizer/pretrained"
 	"google.golang.org/genai"
 )
 
@@ -45,15 +44,15 @@ type LLM struct {
 
 func NewLLM(conf *config.LLM) *LLM {
 	ctx := context.Background()
-	configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
-	if err != nil {
-		log.Fatalf("Failed to get tokenizer path: %v", err)
-	}
+	// configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
+	// if err != nil {
+	// 	log.Fatalf("Failed to get tokenizer path: %v", err)
+	// }
 
-	tk, err := pretrained.FromFile(configFile)
-	if err != nil {
-		panic(err)
-	}
+	// tk, err := pretrained.FromFile(configFile)
+	// if err != nil {
+	// 	log.Fatalf("Failed to get tokenizer: %v", err)
+	// }
 
 	config := &genai.ClientConfig{
 		APIKey:  conf.Summarizer.APIKey,
@@ -67,6 +66,6 @@ func NewLLM(conf *config.LLM) *LLM {
 
 	return &LLM{
 		summarizer: &genaiClientWrapper{client: client},
-		tokenizer:  tk,
+		// tokenizer:  tk,
 	}
 }

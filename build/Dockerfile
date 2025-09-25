@@ -7,8 +7,7 @@ WORKDIR /app
 COPY . .
 RUN go mod tidy && go mod download
 
-RUN go run cmd/minify/minify.go frontend dist
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o /app/joustlm cmd/joustlm/joustlm.go
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o /app/joustlm cmd/joustlm.go
 
 RUN wget https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-amd64_linux.tar.xz
 RUN tar -xvf upx-5.0.0-amd64_linux.tar.xz
